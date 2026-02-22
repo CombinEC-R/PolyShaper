@@ -1,0 +1,37 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-02 (Multi-Polygone + Layerliste):
+- Baue eine rechte Sidebar “Shapes/Layers”:
+  - Liste aller Polygone: Name (rename via Doppelklick), Visible Toggle (👁), Lock Toggle (🔒),
+    Closed Toggle, Punktanzahl, Farbe/Opacity (minimal: farbe pro polygon).
+  - Buttons: New Shape, Duplicate Shape, Delete Shape (Undo-fähig), Clear Points (Undo-fähig)
+  - Aktives Shape klar markieren.
+
+- Datenmodell:
+  - doc.polygons[] wie oben, mindestens outer ring.
+  - Jeder Polygon-Eintrag: {id,name,color,opacity,closed,visible,locked,rings:[outer]}
+  - Aktionen dürfen gelockte Shapes nicht editieren.
+
+- Interaktion:
+  - Beim Zeichnen/Setzen von Punkten: immer ins aktive Shape (wenn nicht locked).
+  - Klick auf Shape-Zeile macht es aktiv.
+  - “Solo”: Alt-Klick auf Eye -> nur dieses sichtbar, alle anderen unsichtbar (toggle zurück möglich).
+
+ABNAHME:
+- Du kannst 3 Shapes anlegen, zwischen ihnen wechseln, eines locken, eines verstecken,
+  und weiterhin sauber editieren.

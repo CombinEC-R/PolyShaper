@@ -1,0 +1,5 @@
+{
+  "name": "Polygon Annotation Tool",
+  "description": "An application to load an image, set, delete, and move polygon points, and display a transparent polygon overlay with a scalable coordinate system.",
+  "requestFramePermissions": []
+}

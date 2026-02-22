@@ -1,0 +1,38 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-06 (Measurement Tools + Stats):
+Implementiere Measurement-Modi:
+
+- Mode: Measure Distance
+  - Klick A, Klick B -> Linie + Label (world units)
+  - Live preview beim Bewegen der Maus nach erstem Klick.
+
+- Mode: Measure Angle
+  - Klick A, Klick B (vertex), Klick C -> Winkel in Grad + Anzeige.
+
+- Polygon Stats:
+  - Für aktives Polygon: perimeter (world units), area (world units^2)
+  - Area via Shoelace in Pixeln -> umrechnen: areaWorld = areaPx / (pixelsPerUnit^2)
+  - Perimeter: sum distancesPx / pixelsPerUnit
+  - Y-Achse (world up) muss korrekt sein, aber für Längen/Area reicht px->world scaling.
+
+- UI: Measurement Panel mit Clear/Reset.
+
+ABNAHME:
+- Stats ändern sich live, wenn Punkte verschoben werden.
+- Measure overlays respektieren Zoom/Pan.

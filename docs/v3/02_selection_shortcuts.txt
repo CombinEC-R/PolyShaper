@@ -1,0 +1,40 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+V3 ist ein Workflow-Upgrade: schnelleres Wechseln/Verwalten von Shapes, bessere Shortcuts,
+Pro-Checks (self-intersection), Simplify, Numeric edit, Transform.
+
+
+AUFGABE V3-02 (Selection & Shortcut Upgrade):
+- Implementiere:
+  1) Ctrl+A: Select ALL points im aktiven Shape (outer ring). (preventDefault!)
+  2) Ctrl+Shift+A: Select ALL points in ALL visible+unlocked shapes.
+  3) Shift+Click: Add; Ctrl/Cmd+Click: Toggle; Click ohne Modifier: replace selection.
+  4) Temporäre Modi:
+     - Wenn UI mode = Draw: Ctrl halten schaltet temporär auf Select/Move (solange gedrückt).
+     - Space halten bleibt Pan (Hand tool).
+  5) ESC: clear selection / close overlays.
+  6) Delete/Backspace:
+     - Wenn Punkte selektiert: lösche selektierte Punkte.
+     - Wenn keine Punkte selektiert, aber Shape-Zeile fokussiert: lösche Shape (mit confirm oder “hold shift”).
+
+- UI:
+  - Anzeige “Selection: N points” + “Active shape: …”
+  - Optional: “Selection in multiple shapes” erlauben (wenn Ctrl+Shift+A), aber klar anzeigen.
+
+ABNAHME:
+- Ctrl+A funktioniert zuverlässig und markiert nur Shape-Punkte.
+- Browser markiert NICHT die ganze Seite.

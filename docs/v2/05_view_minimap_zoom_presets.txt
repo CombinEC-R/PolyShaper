@@ -1,0 +1,37 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-05 (View Upgrade: Minimap + Zoom Presets + Center on Origin):
+1) Minimap:
+- Kleines Overlay (z.B. bottom-right) zeigt das gesamte Bild (fit) + Viewport-Rechteck.
+- Toggle in UI.
+
+2) Zoom Presets:
+- Buttons: 25/50/100/200/400%
+- FIT Button: Bild in Viewport einpassen.
+- RESET: zoom=100%, pan center.
+
+3) Center on Origin:
+- Button zentriert View so, dass Origin in Canvas-Mitte liegt.
+
+4) Zoom-to-cursor smoothing:
+- Wheel-zoom um Mauszeiger, aber mit leichter Smoothing/Throttle (ohne Lag).
+- ZOOMBAR bleibt “single source of truth” (Slider setzt zoom; Wheel ändert zoom und Slider sync).
+
+ABNAHME:
+- Bei Zoom per Wheel bleibt der Punkt unter Maus stabil.
+- Minimap Viewport passt korrekt bei Resizes.

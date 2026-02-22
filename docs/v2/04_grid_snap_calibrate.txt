@@ -1,0 +1,41 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-04 (Grid + Snapping + Kalibrierung):
+1) Grid Overlay:
+- Toggle Grid.
+- Grid Step: wählbar (z.B. in world units) + Anzeige.
+- Grid in WORLD-Koordinaten zeichnen (also bei Zoom/Pan korrekt).
+
+2) Snapping:
+- Snapping Toggle.
+- Optionen:
+  a) Snap to Grid (world)
+  b) Snap to Axes (wenn |worldX| oder |worldY| < epsilon)
+  c) Snap to Points (nahe vorhandener Punkte, threshold in screen px)
+- UI: Checkboxen + numerische Inputs für Thresholds.
+
+3) Kalibrierung (2-Punkt):
+- Tool/Mode “Calibrate”:
+  - Klick Punkt A, Klick Punkt B (in image px)
+  - Eingabefeld “Real distance” + Unit label
+  - pixelsPerUnit wird automatisch gesetzt: distPx / distReal
+- Danach zurück in Edit Mode.
+
+ABNAHME:
+- Beim Ändern von pixelsPerUnit bleibt das Polygon an gleicher Pixelposition,
+  aber Weltkoordinaten ändern sich korrekt.

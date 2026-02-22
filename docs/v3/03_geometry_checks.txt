@@ -1,0 +1,35 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+V3 ist ein Workflow-Upgrade: schnelleres Wechseln/Verwalten von Shapes, bessere Shortcuts,
+Pro-Checks (self-intersection), Simplify, Numeric edit, Transform.
+
+
+AUFGABE V3-03 (Geometry Checks: Self-intersection + Degenerate Warnings):
+- Implementiere Self-intersection detection für closed polygons (outer ring):
+  - O(n^2) Segment-Schnitt reicht (punktzahl typ. < 500).
+  - Ignoriere benachbarte Segmente (teilen Endpoint).
+  - Wenn Schnitt: UI warnt (Badge im Shapes Panel) + markiere Schnittsegmente im Canvas (z.B. rot).
+- Degenerate checks:
+  - Duplicate consecutive points
+  - Very short edges (threshold in px)
+  - Too few points to close
+- UI:
+  - Warnings Panel (listet issues pro shape)
+  - Toggle “Show warnings overlay”
+
+ABNAHME:
+- Bei absichtlicher Selbstüberschneidung wird es erkannt + sichtbar markiert.

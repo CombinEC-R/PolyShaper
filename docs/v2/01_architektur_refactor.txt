@@ -1,0 +1,44 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-01 (Architektur-Refactor + Render-Loop):
+- Refactore State in eine klare Struktur:
+  state = {
+    image:{name,width,height,bitmap},
+    view:{zoom,panX,panY},
+    coord:{originPxX,originPxY,pixelsPerUnit,yAxisUp:true,unitLabel:"unit"},
+    ui:{mode:"edit",snappingEnabled:false,gridEnabled:false,showMinimap:false,showLabels:true,closedPolygonDefault:true},
+    doc:{polygons:[ {id,name,closed,visible,locked,rings:[ [ {px,py}, ... ] ] } ]},
+    selection:{polygonId,ringIndex,pointIndices:[...]},  // Multi-Select als Array
+    history:{undoStack:[],redoStack:[]},
+    runtime:{dirty:true,hover:{...}}
+  }
+
+- Implementiere:
+  1) High-DPI Canvas (devicePixelRatio), scharfes Rendering
+  2) Dirty-Flag Rendering: render() nur wenn dirty; schedule über requestAnimationFrame
+  3) Fokus/Keyboard-Routing: Shortcuts nur aktiv wenn Canvas fokussiert; preventDefault für Space/Ctrl+A/Contextmenu
+  4) Saubere Transform-Schichten:
+     - View: zoom/pan (screen <-> image px)
+     - Coord: origin/scale (image px -> world)
+  5) Statusbar unten: mouse px + mouse world + zoom%
+
+- Behalte bestehende Features (Bild laden, Punkte setzen/ziehen/löschen, Overlay, Zoombar, Pan/Zoom, Origin/Scale).
+
+ABNAHME:
+- Nichts „verschlechtert“: alles Vorherige funktioniert noch.
+- Code ist lesbar: kleine Funktionen (transform helpers, hit testing, etc.).

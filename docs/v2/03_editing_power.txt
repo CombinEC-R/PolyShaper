@@ -1,0 +1,43 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-03 (Editing-Power: Insert-on-edge + Multi-Select + Nudge + Reorder):
+Implementiere folgende Kernfeatures:
+
+1) Insert-on-edge:
+- Alt+Click nahe einer Kante im aktiven Polygon (outer ring) fügt einen Punkt zwischen die zwei Segment-Endpunkte ein.
+- Distanz Punkt-zu-Segment im SCREEN-SPACE (nach Zoom/Pan) mit Threshold z.B. 10px.
+- Wähle die nächste Kante (min distance) und insert dort.
+
+2) Multi-Select:
+- Shift+Click: Punkt hinzufügen/entfernen (add/remove).
+- Ctrl/Cmd+Click: Toggle Punkt in Auswahl (falls du Shift schon für add nutzt, ist Ctrl toggle ok).
+- Box-Select: Shift+Drag im leeren Bereich -> Auswahlrechteck, wählt alle Punkte im Rechteck (Screen coords).
+- Drag bei Multi-Selection verschiebt alle selektierten Punkte zusammen.
+
+3) Nudge:
+- Arrow keys verschieben selektierte Punkte in Pixeln.
+- Shift = 10px.
+- Optional Toggle “Nudge in world units” (wenn aktiv: step in world, intern in px umrechnen).
+
+4) Reorder:
+- Bei Auswahl eines einzelnen Punkts: [ und ] tauschen den Punkt mit prev/next (Index ändern).
+- Bei multi-selection: ignorieren oder nur ersten aktiven Punkt reorder (klar definieren).
+
+ABNAHME:
+- Insert-on-edge funktioniert bei Zoom 100% und 400% gleich zuverlässig.
+- Multi-Select + Drag fühlt sich sauber an, Undo/Redo funktioniert.

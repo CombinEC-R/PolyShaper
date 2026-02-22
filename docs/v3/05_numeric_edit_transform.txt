@@ -1,0 +1,35 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+V3 ist ein Workflow-Upgrade: schnelleres Wechseln/Verwalten von Shapes, bessere Shortcuts,
+Pro-Checks (self-intersection), Simplify, Numeric edit, Transform.
+
+
+AUFGABE V3-05 (Numeric Edit + Transform Selection):
+- Numeric edit panel:
+  - Wenn ein Punkt ausgewählt: Inputs für pxX/pxY und worldX/worldY (editierbar).
+  - Edit in world rechnet zurück nach px (unter Nutzung origin + scale + yAxisUp).
+- Transform selection (für Multi-Select):
+  - Move (existiert), neu:
+  - Scale selection um Pivot (Origin oder Centroid wählbar), minimal: uniform scale slider.
+  - Mirror X/Y (an world axes).
+  - Rotate um Pivot (optional minimal: rotate by input degrees).
+- UX:
+  - Preview transform + Apply/Cancel.
+  - Undo-fähig.
+
+ABNAHME:
+- world-edit eines Punktes aktualisiert px korrekt (Punkt bleibt an richtiger Stelle relativ zum Bild).

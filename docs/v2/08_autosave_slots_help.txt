@@ -1,0 +1,41 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-08 (Autosave + Slots + Help Overlay + Unsaved Warning):
+1) Autosave:
+- Speichere Projekt (ohne bitmap) in localStorage bei Änderungen (debounce, z.B. 500ms).
+- Beim Start: wenn Autosave vorhanden, “Restore?” Banner (optional) oder auto-restore.
+
+2) Save Slots:
+- Mindestens 3 Slots (Slot 1–3): Save / Load / Rename.
+- Speichere als Project JSON im localStorage.
+
+3) beforeunload:
+- Warnung wenn dirty since last manual save/load.
+
+4) Help Overlay:
+- “?” Button öffnet Overlay mit Shortcuts + Controls.
+- Schließbar per ESC.
+
+5) UX Polish:
+- Tooltip bei Hover auf Punkt: index + px/world.
+- Hover highlight nearest point.
+- Locked/hidden Verhalten konsequent.
+
+ABNAHME:
+- Reload Browser -> Projekt kommt wieder.
+- Slots funktionieren ohne Bugs.

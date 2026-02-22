@@ -1,0 +1,52 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+
+AUFGABE V2-07 (Export/Import: Project JSON, COCO, CSV, SVG, PNG):
+Implementiere Exporte (Download + Copy where possible):
+
+1) Project JSON (wichtigster):
+- Enthält: image meta (name,w,h), coord settings, optional view state,
+  polygons mit rings in px, colors/visibility/lock.
+- UI Checkbox: “include view state”.
+- Copy JSON Button + Download .json
+
+2) COCO Segmentation Export:
+- Für jedes sichtbare Polygon (outer ring):
+  - segmentation: [x1,y1,x2,y2,...] in PIXELN
+  - bbox: [minX,minY,width,height] in PIXELN
+- Output als JSON Download.
+
+3) CSV Export:
+- polygonId,pointIndex,worldX,worldY
+- Optional 2. CSV: pxX,pxY
+
+4) SVG Export:
+- viewBox = image size
+- Für jedes Polygon: <path> oder <polygon>, opacity entsprechend
+- Optional: origin crosshair lines.
+
+5) PNG Export:
+- Render Bild + Overlay in offscreen canvas -> Download PNG
+
+6) Import Project JSON:
+- File input “Import”.
+- Validierung + Fehlermeldung (human readable).
+- Import setzt state sauber, inklusive polygons.
+
+ABNAHME:
+- Export-Dateien sind syntaktisch korrekt.
+- Import lädt exakt die gleichen Punkte wieder.

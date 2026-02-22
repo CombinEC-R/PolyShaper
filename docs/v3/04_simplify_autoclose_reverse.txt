@@ -1,0 +1,35 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+V3 ist ein Workflow-Upgrade: schnelleres Wechseln/Verwalten von Shapes, bessere Shortcuts,
+Pro-Checks (self-intersection), Simplify, Numeric edit, Transform.
+
+
+AUFGABE V3-04 (Simplify + Auto-close + Reverse/Orientation):
+- Simplify Tool (Ramer–Douglas–Peucker) für aktives Shape:
+  - Slider “Tolerance” (in px oder world units, aber klar).
+  - Preview + Apply/Cancel.
+  - Undo-fähig.
+- Auto-close:
+  - Wenn im Draw Mode der letzte Punkt nahe am ersten liegt (screen threshold), biete “auto close”.
+  - Toggle in UI.
+- Reverse order:
+  - Button/Action “Reverse Points” (CW<->CCW).
+- Optional: Orientation enforce:
+  - “Force CW” / “Force CCW” (nur wenn closed).
+
+ABNAHME:
+- Simplify reduziert Punkte und behält Form sichtbar.

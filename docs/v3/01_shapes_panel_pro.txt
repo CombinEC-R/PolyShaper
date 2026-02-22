@@ -1,0 +1,40 @@
+Du bist Lead Frontend Engineer für eine Canvas-Annotation-Webapp (Polygon/Shapes).
+WICHTIG: Kein Backend, keine externen Libraries, alles in EINER HTML-Datei (CSS+JS embedded).
+Ziel: Offline nutzbar (file://), robust bei Browser-Restriktionen (Clipboard-Fallback via Textarea).
+
+ANTWORTFORMAT (streng):
+1) Max 10–14 Zeilen: Bedienung + Shortcuts (nur das Wichtigste)
+2) Danach: KOMPLETTES HTML (eine Datei) in einem einzigen Code-Block.
+
+EINGABE:
+- Unten steht der aktuelle Stand als CURRENT_HTML. Nimm ihn als Basis und baue weiter.
+
+CURRENT_HTML:
+```html
+<!-- PASTE HERE: vollständige index.html aus der vorherigen Runde -->
+```
+
+V3 ist ein Workflow-Upgrade: schnelleres Wechseln/Verwalten von Shapes, bessere Shortcuts,
+Pro-Checks (self-intersection), Simplify, Numeric edit, Transform.
+
+
+AUFGABE V3-01 (Shapes Panel Pro):
+- Upgrade Layerliste zu einem echten “Shapes Panel” mit:
+  - Search/Filter Input (filtert nach Name)
+  - Reorder (Drag&Drop oder Up/Down Buttons; beeinflusst Render order)
+  - Kontextmenü pro Shape (Right-click):
+    - Rename, Duplicate, Delete Shape, Clear Points, Reverse Order, Export this Shape
+  - Quick stats: #Pts, area, perimeter (wenn closed), visibility/lock icons
+  - Color picker + opacity slider pro Shape (einfach, aber funktional)
+
+- Shortcuts:
+  - Tab / Shift+Tab: next/prev Shape (nur visible+unlocked, wenn Option “skip locked/hidden” aktiv)
+  - 1..9: jump to shape index (wenn vorhanden)
+
+- Actions:
+  - “Clear Points of shape” löscht alle nodes im aktiven Shape (Undo-fähig).
+  - “Delete shape” löscht Shape komplett (Undo-fähig).
+  - “Solo” Mode bleibt.
+
+ABNAHME:
+- Du kannst 10 Shapes anlegen, suchen, reorder, clear points, delete, undo.
