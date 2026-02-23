@@ -159,19 +159,21 @@ function render() {
 
         // Draw polygon lines
         if (shape.points.length > 1) {
-            ctx.strokeStyle = 'rgba(0, 122, 204, 0.9)';
-            ctx.fillStyle = 'rgba(0, 122, 204, 0.3)';
+            ctx.strokeStyle = shape.color;
+            ctx.fillStyle = shape.color;
+            ctx.globalAlpha = shape.opacity;
             ctx.lineWidth = 2 / state.viewTransform.scale;
             ctx.beginPath();
             ctx.moveTo(shape.points[0].x, shape.points[0].y);
             for (let i = 1; i < shape.points.length; i++) {
                 ctx.lineTo(shape.points[i].x, shape.points[i].y);
             }
-            if (dom.closePolygonCheckbox.checked) { // This should probably be shape-specific
+            if (shape.closed) {
                 ctx.closePath();
             }
             ctx.stroke();
             ctx.fill();
+            ctx.globalAlpha = 1.0;
         }
 
         // Draw points

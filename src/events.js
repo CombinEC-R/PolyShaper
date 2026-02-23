@@ -70,9 +70,21 @@ export function initEventListeners() {
 
     dom.undoBtn.addEventListener('click', () => {
         if (state.history.length > 0) {
-            state.redoStack.push(JSON.stringify(state.shapes));
-            const prevState = JSON.parse(state.history.pop());
-            state.shapes = prevState;
+            const currentSnapshot = {
+                shapes: state.shapes,
+                activeShapeId: state.activeShapeId
+            };
+            state.redoStack.push(JSON.stringify(currentSnapshot));
+            
+            const prevSnapshot = JSON.parse(state.history.pop());
+            // Handle potential legacy array-only history (just in case)
+            if (Array.isArray(prevSnapshot)) {
+                state.shapes = prevSnapshot;
+            } else {
+                state.shapes = prevSnapshot.shapes;
+                state.activeShapeId = prevSnapshot.activeShapeId;
+            }
+            
             updateUI();
             draw();
         }
@@ -80,9 +92,20 @@ export function initEventListeners() {
 
     dom.redoBtn.addEventListener('click', () => {
         if (state.redoStack.length > 0) {
-            state.history.push(JSON.stringify(state.shapes));
-            const nextState = JSON.parse(state.redoStack.pop());
-            state.shapes = nextState;
+            const currentSnapshot = {
+                shapes: state.shapes,
+                activeShapeId: state.activeShapeId
+            };
+            state.history.push(JSON.stringify(currentSnapshot));
+            
+            const nextSnapshot = JSON.parse(state.redoStack.pop());
+            if (Array.isArray(nextSnapshot)) {
+                state.shapes = nextSnapshot;
+            } else {
+                state.shapes = nextSnapshot.shapes;
+                state.activeShapeId = nextSnapshot.activeShapeId;
+            }
+            
             updateUI();
             draw();
         }
@@ -141,7 +164,6 @@ export function initEventListeners() {
         draw();
     });
 
-    dom.closePolygonCheckbox.addEventListener('change', () => draw());
     dom.showLabelsCheckbox.addEventListener('change', () => draw());
 
     dom.snapEnableCheckbox.addEventListener('change', () => draw());
@@ -178,9 +200,99 @@ export function initEventListeners() {
         }
     });
 
-    dom.addPolygonBtn.addEventListener('click', () => {
+    dom.addShapeBtn.addEventListener('click', () => {
         addNewPolygon();
         updateUI();
+        draw();
+    });
+
+    dom.duplicateShapeBtn.addEventListener('click', () => {
+        const activeShape = getActiveShape();
+        if (activeShape) {
+            recordHistory();
+            const newShape = JSON.parse(JSON.stringify(activeShape));
+            newShape.id = Date.now() + Math.random();
+            newShape.name = activeShape.name + ' (Copy)';
+            state.shapes.push(newShape);
+            state.activeShapeId = newShape.id;
+            updateUI();
+            draw();
+        }
+    });
+
+    dom.deleteShapeBtn.addEventListener('click', () => {
+        const activeShape = getActiveShape();
+        if (activeShape) {
+            if (confirm(`Delete "${activeShape.name}"?`)) {
+                recordHistory();
+                state.shapes = state.shapes.filter(s => s.id !== activeShape.id);
+                
+                if (state.activeShapeId === activeShape.id) {
+                    state.activeShapeId = state.shapes.length > 0 ? state.shapes[0].id : null;
+                }
+
+                if (state.selectedPoint && state.selectedPoint.shapeId === activeShape.id) {
+                    state.selectedPoint = null;
+                }
+                if (state.hoveredPoint && state.hoveredPoint.shapeId === activeShape.id) {
+                    state.hoveredPoint = null;
+                }
+                
+                updateUI();
+                draw();
+            }
+        }
+    });
+
+    dom.clearPointsBtn.addEventListener('click', () => {
+        const activeShape = getActiveShape();
+        if (activeShape && !activeShape.locked) {
+            if (confirm(`Clear all points from "${activeShape.name}"?`)) {
+                recordHistory();
+                activeShape.points = [];
+                updateUI();
+                draw();
+            }
+        }
+    });
+
+    dom.shapeClosedCheckbox.addEventListener('change', (e) => {
+        const activeShape = getActiveShape();
+        if (activeShape && !activeShape.locked) {
+            recordHistory();
+            activeShape.closed = e.target.checked;
+            draw();
+        }
+    });
+
+    dom.shapeColorInput.addEventListener('input', (e) => {
+        const activeShape = getActiveShape();
+        if (activeShape && !activeShape.locked) {
+            // No history on input, only on change
+            activeShape.color = e.target.value;
+            draw();
+        }
+    });
+    
+    dom.shapeColorInput.addEventListener('change', () => {
+        recordHistory();
+    });
+
+    dom.shapeOpacityInput.addEventListener('input', (e) => {
+        const activeShape = getActiveShape();
+        if (activeShape && !activeShape.locked) {
+            // No history on input, only on change
+            activeShape.opacity = parseFloat(e.target.value);
+            draw();
+        }
+    });
+
+    dom.shapeOpacityInput.addEventListener('change', () => {
+        recordHistory();
+    });
+
+    dom.shapesList.addEventListener('click', (e) => {
+        // Event delegation removed, handled directly in dom.js
     });
 
     dom.canvas.addEventListener('mousedown', (e) => {
@@ -252,6 +364,7 @@ export function initEventListeners() {
                 state.activeShapeId = foundPoint.shapeId;
                 state.selectedPoint = foundPoint;
                 state.draggedPoint = { ...foundPoint };
+                state.isPointMoved = false;
             } else {
                 const activeShape = getActiveShape();
                 if (activeShape && !activeShape.locked) {
@@ -333,6 +446,10 @@ export function initEventListeners() {
         if (state.draggedPoint) {
             const shape = state.shapes.find(s => s.id === state.draggedPoint.shapeId);
             if (shape && !shape.locked) {
+                if (!state.isPointMoved) {
+                    recordHistory();
+                    state.isPointMoved = true;
+                }
                 const rawPointPx = screenToImagePx(mouseS.x, mouseS.y);
                 const { snappedPx } = computePointSnap(rawPointPx, shape.points[state.draggedPoint.pointIndex]);
                 shape.points[state.draggedPoint.pointIndex] = snappedPx;
@@ -351,18 +468,18 @@ export function initEventListeners() {
         if (state.hoveredPoint) {
             const shape = state.shapes.find(s => s.id === state.hoveredPoint.shapeId);
             if (shape && !shape.locked) {
+                recordHistory();
                 shape.points.splice(state.hoveredPoint.pointIndex, 1);
                 state.hoveredPoint = null;
                 state.selectedPoint = null;
-                recordHistory();
                 updateUI();
                 draw();
             }
         } else {
             const activeShape = getActiveShape();
             if (activeShape && !activeShape.locked && activeShape.points.length > 0) {
-                activeShape.points.pop();
                 recordHistory();
+                activeShape.points.pop();
                 updateUI();
                 draw();
             }
@@ -385,7 +502,7 @@ export function initEventListeners() {
         }
         if (state.draggedPoint) {
             state.draggedPoint = null;
-            recordHistory();
+            state.isPointMoved = false;
         }
     });
 
@@ -426,9 +543,9 @@ export function initEventListeners() {
             if (state.selectedPoint) {
                 const activeShape = getActiveShape();
                 if(activeShape){
+                    recordHistory();
                     activeShape.points.splice(state.selectedPoint.pointIndex, 1);
                     state.selectedPoint = null;
-                    recordHistory();
                     updateUI();
                     draw();
                 }

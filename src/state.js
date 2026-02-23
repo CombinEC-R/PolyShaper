@@ -44,6 +44,7 @@ let state = {
         activeToX0: false, 
         activeToY0: false 
     },
+    isPointMoved: false,
     history: [],
     redoStack: [],
 };
@@ -56,7 +57,6 @@ export const saveState = () => {
         activeShapeId: state.activeShapeId,
         worldTransform: state.worldTransform,
         imageTransform: state.imageTransform,
-        closePolygon: document.getElementById('close-polygon-checkbox').checked,
     };
     localStorage.setItem('polygonToolState_v2', JSON.stringify(stateToSave));
 };
@@ -69,7 +69,6 @@ export const loadState = () => {
         state.activeShapeId = parsed.activeShapeId || null;
         state.worldTransform = parsed.worldTransform || { originPxX: 0, originPxY: 0, pixelsPerUnit: 1 };
         state.imageTransform = parsed.imageTransform || { offsetX: 0, offsetY: 0, scale: 1, flipX: false, flipY: false, rotation: 0 };
-        document.getElementById('close-polygon-checkbox').checked = parsed.closePolygon || false;
     } else {
         const oldSaved = localStorage.getItem('polygonToolState');
         if (oldSaved) {
@@ -81,7 +80,6 @@ export const loadState = () => {
                 state.activeShapeId = newShape.id;
             }
              state.worldTransform = parsed.worldTransform || { originPxX: 0, originPxY: 0, pixelsPerUnit: 1 };
-             document.getElementById('close-polygon-checkbox').checked = parsed.closePolygon || false;
         }
     }
 
@@ -91,7 +89,11 @@ export const loadState = () => {
 };
 
 export const recordHistory = () => {
-    state.history.push(JSON.stringify(state.shapes));
+    const snapshot = {
+        shapes: state.shapes,
+        activeShapeId: state.activeShapeId
+    };
+    state.history.push(JSON.stringify(snapshot));
     if (state.history.length > 50) state.history.shift();
     state.redoStack = [];
     // updateUI(); // This will be called from main.js
@@ -104,19 +106,35 @@ export function getActiveShape() {
 
 export function createNewShape() {
     const id = Date.now() + Math.random();
+    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
+    const color = colors[state.shapes.length % colors.length];
     return { 
         id,
         name: `Polygon ${state.shapes.length + 1}`,
         points: [],
         visible: true,
         locked: false,
+        closed: true,
+        color: color,
+        opacity: 0.3
     };
 }
 
+export function deleteShape(shapeId) {
+    const shapeIndex = state.shapes.findIndex(s => s.id === shapeId);
+    if (shapeIndex === -1) return;
+    
+    recordHistory();
+    state.shapes.splice(shapeIndex, 1);
+    if (state.activeShapeId === shapeId) {
+        state.activeShapeId = state.shapes.length > 0 ? state.shapes[0].id : null;
+    }
+}
+
 export function addNewPolygon() {
+    recordHistory();
     const newShape = createNewShape();
     state.shapes.push(newShape);
     state.activeShapeId = newShape.id;
-    recordHistory();
     // updateUI(); // This will be called from main.js
 }

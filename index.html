@@ -196,15 +196,26 @@
                 <label>Pixels per Unit: <input type="number" id="scale-input" value="1"></label>
             </div>
 
-            <h3>Polygons</h3>
+            <h3>Shapes/Layers</h3>
             <div class="control-group">
-                <button id="add-polygon-btn">Add Polygon</button>
-                <div id="polygon-list" style="max-height: 150px; overflow-y: auto; margin-top: 0.5rem;"></div>
+                <div style="display: flex; gap: 0.25rem;">
+                    <button id="add-shape-btn" style="flex-grow: 1;" title="New Shape">New</button>
+                    <button id="duplicate-shape-btn" style="flex-grow: 1;" title="Duplicate Shape">Dup</button>
+                    <button id="delete-shape-btn" style="flex-grow: 1;" title="Delete Shape">Del</button>
+                    <button id="clear-points-btn" style="flex-grow: 1;" title="Clear Points">Clr</button>
+                </div>
+                <div id="shapes-list" style="max-height: 200px; overflow-y: auto; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary);"></div>
             </div>
 
-            <h3>Polygon</h3>
+            <h3>Active Shape</h3>
             <div class="control-group">
-                <label><input type="checkbox" id="close-polygon-checkbox"> Close Polygon</label>
+                <label><input type="checkbox" id="shape-closed-checkbox"> Closed</label>
+                <label style="display: flex; align-items: center; gap: 0.5rem;">Color: <input type="color" id="shape-color-input" style="width: 40px; height: 24px; padding: 0; border: none;"></label>
+                <label>Opacity: <input type="range" id="shape-opacity-input" min="0" max="1" step="0.1"></label>
+            </div>
+
+            <h3>Global Settings</h3>
+            <div class="control-group">
                 <label><input type="checkbox" id="show-labels-checkbox"> Show Point Labels</label>
             </div>
 
