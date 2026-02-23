@@ -184,6 +184,7 @@ export function initEventListeners() {
     });
 
     dom.canvas.addEventListener('mousedown', (e) => {
+        dom.canvas.focus();
         const mouseS = getMousePos(e);
         const mouseImgPos = screenToImagePx(mouseS.x, mouseS.y);
         const { originPxX, originPxY } = state.worldTransform;
@@ -270,7 +271,7 @@ export function initEventListeners() {
         const imagePos = screenToImagePx(mouseS.x, mouseS.y);
         const worldPos = imageToWorld(imagePos.x, imagePos.y);
         
-        dom.mouseCoordsStatus.textContent = `X: ${worldPos.x.toFixed(3)}, Y: ${worldPos.y.toFixed(3)}`;
+        dom.mouseCoordsStatus.textContent = `Px: [${Math.round(imagePos.x)}, ${Math.round(imagePos.y)}] | World: [${worldPos.x.toFixed(3)}, ${worldPos.y.toFixed(3)}]`;
         
         if (state.isPanning) {
             const dx = e.clientX - state.lastMousePos.x;
@@ -411,9 +412,15 @@ export function initEventListeners() {
     });
 
     window.addEventListener('keydown', (e) => {
+        if (document.activeElement !== dom.canvas) return;
+
         if (e.key === ' ') {
+            e.preventDefault();
             state.isSpaceDown = true;
             dom.canvas.style.cursor = 'grab';
+        }
+        if (e.ctrlKey && e.key.toLowerCase() === 'a') {
+            e.preventDefault();
         }
         if (e.key === 'Delete' || e.key === 'Backspace') {
             if (state.selectedPoint) {
@@ -428,9 +435,11 @@ export function initEventListeners() {
             }
         }
         if (e.ctrlKey && e.key === 'z') {
+            e.preventDefault();
             dom.undoBtn.click();
         }
         if (e.ctrlKey && e.key === 'y') {
+            e.preventDefault();
             dom.redoBtn.click();
         }
         if(e.key === 'Escape'){
@@ -440,6 +449,8 @@ export function initEventListeners() {
     });
 
     window.addEventListener('keyup', (e) => {
+        if (document.activeElement !== dom.canvas) return;
+        
         if (e.key === ' ') {
             state.isSpaceDown = false;
             dom.canvas.style.cursor = 'crosshair';

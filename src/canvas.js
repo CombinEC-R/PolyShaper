@@ -2,7 +2,22 @@ import { getState } from './state.js';
 import { dom } from './dom.js';
 import { calculateGridInterval, imageToWorld, getImageCorners } from './utils.js';
 
+let isDirty = true;
+let renderRequested = false;
+
 export function draw() {
+    isDirty = true;
+    if (!renderRequested) {
+        renderRequested = true;
+        requestAnimationFrame(render);
+    }
+}
+
+function render() {
+    renderRequested = false;
+    if (!isDirty) return;
+    isDirty = false;
+
     const state = getState();
     const { ctx, canvas } = dom;
     const dpr = window.devicePixelRatio || 1;
