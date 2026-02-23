@@ -59,18 +59,6 @@ export function initDom() {
     dom.shapeColorInput = document.getElementById('shape-color-input');
     dom.shapeOpacityInput = document.getElementById('shape-opacity-input');
     dom.centerOriginBtn = document.getElementById('center-origin-btn');
-
-    // Event Delegation for Rename
-    dom.shapesList.addEventListener('dblclick', (e) => {
-        const nameEl = e.target.closest('[data-action="rename"]');
-        if (!nameEl) return;
-        
-        const shapeId = parseInt(nameEl.dataset.shapeId, 10);
-        if (!isNaN(shapeId)) {
-            renameState = { active: true, shapeId: shapeId };
-            updateUI();
-        }
-    });
 }
 
 function updateShapesListUI() {
@@ -115,7 +103,10 @@ function updateShapesListUI() {
             input.addEventListener('dblclick', (e) => e.stopPropagation());
             input.addEventListener('mousedown', (e) => e.stopPropagation());
 
+            let isDone = false;
             const commit = () => {
+                if (isDone) return;
+                isDone = true;
                 const newName = input.value.trim();
                 if (newName && newName !== shape.name) {
                     recordHistory();
@@ -126,6 +117,8 @@ function updateShapesListUI() {
             };
 
             const cancel = () => {
+                if (isDone) return;
+                isDone = true;
                 renameState = { active: false, shapeId: null };
                 updateUI();
             };
@@ -150,9 +143,12 @@ function updateShapesListUI() {
         } else {
             const nameSpan = document.createElement('span');
             nameSpan.textContent = `${shape.name} (${shape.points.length})`;
-            nameSpan.style.cssText = 'flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none;';
-            nameSpan.dataset.action = 'rename';
-            nameSpan.dataset.shapeId = shape.id;
+            nameSpan.style.cssText = 'flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; cursor: text;';
+            nameSpan.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                renameState = { active: true, shapeId: shape.id };
+                updateUI();
+            });
             item.appendChild(nameSpan);
         }
 
