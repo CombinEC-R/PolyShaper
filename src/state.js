@@ -6,7 +6,7 @@ let state = {
     hoveredPoint: null, // { shapeId, pointIndex }
     draggedPoint: null, // { shapeId, pointIndex }
     dragStartPos: null,
-    snapPoint: null,
+
     imageTransform: {
         offsetX: 0,
         offsetY: 0,
@@ -25,26 +25,44 @@ let state = {
     initialDragAngle: 0,
     imageDragOffset: { x: 0, y: 0 },
     viewTransform: { scale: 1, panX: 0, panY: 0 },
-    worldTransform: { originPxX: 0, originPxY: 0, pixelsPerUnit: 1 },
+    worldTransform: { originPxX: 0, originPxY: 0, pixelsPerUnit: 1, yMode: 'math' },
     isPanning: false,
     isSettingOrigin: false,
     isDraggingOrigin: false,
     isSpaceDown: false,
+    isAltDown: false,
     lastMousePos: { x: 0, y: 0 },
     originDragOffsetS: { x: 0, y: 0 },
-    axisSnapState: { 
-        centerActive: false, 
-        centerTarget: null, 
-        xActive: false, 
-        xTargetPx: null, 
-        yActive: false, 
-        yTargetPx: null 
+    snapSettings: {
+        enabled: true,
+        vertex: true,
+        edge: true,
+        axis: true,
+        snapInPx: 10,
+        snapOutPx: 16
     },
-    pointSnapState: { 
-        activeToX0: false, 
-        activeToY0: false 
+    snapState: {
+        active: false,
+        type: null, // 'vertex', 'edge', 'axis'
+        targetRef: null, // { shapeId, pointIndex } or { shapeId, edgeIndex } or 'axisX'/'axisY'
+        snappedPx: null, // { x, y }
+        rawPx: null // { x, y } for hysteresis
+    },
+    snapPreview: {
+        active: false,
+        type: null,
+        targetRef: null,
+        snappedPx: null
     },
     isPointMoved: false,
+    isDraggingPolygon: false,
+    isPolygonMoved: false,
+    initialPolygonPoints: null,
+    polygonDragStartPos: null,
+    export: {
+        decimals: 2,
+        mode: 'absolute' // 'absolute', 'centered', 'origin'
+    },
     history: [],
     redoStack: [],
 };
@@ -57,6 +75,7 @@ export const saveState = () => {
         activeShapeId: state.activeShapeId,
         worldTransform: state.worldTransform,
         imageTransform: state.imageTransform,
+        export: state.export
     };
     localStorage.setItem('polygonToolState_v2', JSON.stringify(stateToSave));
 };
@@ -67,8 +86,17 @@ export const loadState = () => {
         const parsed = JSON.parse(saved);
         state.shapes = parsed.shapes || [];
         state.activeShapeId = parsed.activeShapeId || null;
-        state.worldTransform = parsed.worldTransform || { originPxX: 0, originPxY: 0, pixelsPerUnit: 1 };
+        state.worldTransform = parsed.worldTransform || { originPxX: 0, originPxY: 0, pixelsPerUnit: 1, yMode: 'math' };
+        if (!state.worldTransform.yMode) {
+            state.worldTransform.yMode = 'math';
+        }
         state.imageTransform = parsed.imageTransform || { offsetX: 0, offsetY: 0, scale: 1, flipX: false, flipY: false, rotation: 0 };
+        if (parsed.export) {
+            state.export = parsed.export;
+            if (state.export.mode === 'origin') {
+                state.export.mode = '0 centered';
+            }
+        }
     } else {
         const oldSaved = localStorage.getItem('polygonToolState');
         if (oldSaved) {
@@ -79,7 +107,10 @@ export const loadState = () => {
                 state.shapes.push(newShape);
                 state.activeShapeId = newShape.id;
             }
-             state.worldTransform = parsed.worldTransform || { originPxX: 0, originPxY: 0, pixelsPerUnit: 1 };
+             state.worldTransform = parsed.worldTransform || { originPxX: 0, originPxY: 0, pixelsPerUnit: 1, yMode: 'math' };
+             if (!state.worldTransform.yMode) {
+                state.worldTransform.yMode = 'math';
+            }
         }
     }
 
@@ -118,17 +149,6 @@ export function createNewShape() {
         color: color,
         opacity: 0.3
     };
-}
-
-export function deleteShape(shapeId) {
-    const shapeIndex = state.shapes.findIndex(s => s.id === shapeId);
-    if (shapeIndex === -1) return;
-    
-    recordHistory();
-    state.shapes.splice(shapeIndex, 1);
-    if (state.activeShapeId === shapeId) {
-        state.activeShapeId = state.shapes.length > 0 ? state.shapes[0].id : null;
-    }
 }
 
 export function addNewPolygon() {

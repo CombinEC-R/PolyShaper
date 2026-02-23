@@ -1,6 +1,7 @@
 import { dom, updateUI } from './dom.js';
 import { getState, recordHistory, saveState, getActiveShape, addNewPolygon } from './state.js';
-import { getMouseImagePos, findPointAt, computeAxisSnap, computePointSnap, screenToImagePx, imagePxToScreen, getMousePos, imageToWorld, getImageCorners } from './utils.js';
+import { getMousePos, screenToImagePx, imageToWorld, findPointAt, getImageCorners, calculatePolygonCentroid, formatNumber, computeAdvancedSnap, imagePxToScreen } from './utils.js';
+
 import { draw } from './canvas.js';
 
 function handleImageLoad(file) {
@@ -12,17 +13,17 @@ function handleImageLoad(file) {
             state.image = img;
             state.worldTransform.originPxX = img.width / 2;
             state.worldTransform.originPxY = img.height / 2;
-            handleFit();
+            handleFit(dom.canvas);
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
 
-function handleFit() {
+function handleFit(canvas) {
     const state = getState();
     if (!state.image) return;
-    const rect = dom.canvas.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     const scaleX = rect.width / state.image.width;
     const scaleY = rect.height / state.image.height;
     const scale = Math.min(scaleX, scaleY) * 0.95;
@@ -38,7 +39,7 @@ function handleFit() {
 function handleReset() {
     const state = getState();
     state.viewTransform = { scale: 1, panX: 0, panY: 0 };
-    handleFit();
+    handleFit(dom.canvas);
 }
 
 export function initEventListeners() {
@@ -47,7 +48,7 @@ export function initEventListeners() {
     dom.loadImageBtn.addEventListener('click', () => dom.fileInput.click());
     dom.fileInput.addEventListener('change', (e) => e.target.files.length && handleImageLoad(e.target.files[0]));
 
-    dom.fitBtn.addEventListener('click', handleFit);
+    dom.fitBtn.addEventListener('click', () => handleFit(dom.canvas));
     dom.resetBtn.addEventListener('click', handleReset);
 
     dom.zoomInBtn.addEventListener('click', () => {
@@ -118,13 +119,19 @@ export function initEventListeners() {
     });
 
     dom.imageScaleInput.addEventListener('change', (e) => {
-        state.imageTransform.scale = parseFloat(e.target.value);
-        draw();
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+            state.imageTransform.scale = value;
+            draw();
+        }
     });
 
     dom.imageRotationInput.addEventListener('change', (e) => {
-        state.imageTransform.rotation = parseFloat(e.target.value);
-        draw();
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+            state.imageTransform.rotation = value;
+            draw();
+        }
     });
 
     dom.flipXBtn.addEventListener('click', () => {
@@ -138,18 +145,43 @@ export function initEventListeners() {
     });
 
     dom.originXInput.addEventListener('change', (e) => {
-        state.worldTransform.originPxX = parseFloat(e.target.value);
-        draw();
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+            state.worldTransform.originPxX = value;
+            draw();
+        }
     });
 
     dom.originYInput.addEventListener('change', (e) => {
-        state.worldTransform.originPxY = parseFloat(e.target.value);
-        draw();
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+            state.worldTransform.originPxY = value;
+            draw();
+        }
     });
 
     dom.scaleInput.addEventListener('change', (e) => {
-        state.worldTransform.pixelsPerUnit = parseFloat(e.target.value);
-        draw();
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value) && value > 0) {
+            state.worldTransform.pixelsPerUnit = value;
+            draw();
+        }
+    });
+
+    dom.yModeMathRadio.addEventListener('change', () => {
+        if (dom.yModeMathRadio.checked) {
+            state.worldTransform.yMode = 'math';
+            updateUI();
+            draw();
+        }
+    });
+
+    dom.yModeGpuRadio.addEventListener('change', () => {
+        if (dom.yModeGpuRadio.checked) {
+            state.worldTransform.yMode = 'gpu';
+            updateUI();
+            draw();
+        }
     });
 
     dom.setOriginBtn.addEventListener('click', () => {
@@ -166,31 +198,178 @@ export function initEventListeners() {
 
     dom.showLabelsCheckbox.addEventListener('change', () => draw());
 
-    dom.snapEnableCheckbox.addEventListener('change', () => draw());
-    dom.snapDistSlider.addEventListener('input', (e) => {
-        dom.snapDistLabel.textContent = e.target.value;
+    dom.snapEnabledCheckbox.addEventListener('change', (e) => {
+        state.snapSettings.enabled = e.target.checked;
         draw();
     });
+    dom.snapVertexCheckbox.addEventListener('change', (e) => {
+        state.snapSettings.vertex = e.target.checked;
+        draw();
+    });
+    dom.snapEdgeCheckbox.addEventListener('change', (e) => {
+        state.snapSettings.edge = e.target.checked;
+        draw();
+    });
+    dom.snapAxisCheckbox.addEventListener('change', (e) => {
+        state.snapSettings.axis = e.target.checked;
+    });
+    dom.snapInInput.addEventListener('change', (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value)) {
+            state.snapSettings.snapInPx = value;
+        }
+    });
+    dom.snapOutInput.addEventListener('change', (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value)) {
+            state.snapSettings.snapOutPx = value;
+        }
+    });
+
+    const copyToClipboard = (text) => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).catch(err => {
+                fallbackCopyText(text);
+            });
+        } else {
+            fallbackCopyText(text);
+        }
+    };
+
+    const fallbackCopyText = (text) => {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        
+        // Ensure it's not visible but part of the DOM
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        
+        document.body.removeChild(textArea);
+    };
 
     dom.copyJsonBtn.addEventListener('click', () => {
+        const state = getState();
+        const { originPxX, originPxY, pixelsPerUnit, yMode } = state.worldTransform;
+        const { decimals, mode } = state.export;
+        
         const data = {
-            worldTransform: state.worldTransform,
-            shapes: state.shapes.map(shape => ({
-                ...shape,
-                pointsPx: shape.points,
-                pointsWorld: shape.points.map(p => imageToWorld(p.x, p.y))
-            }))
+            coord: {
+                originPxX,
+                originPxY,
+                pixelsPerUnit,
+                yMode,
+                unitLabel: "unit"
+            },
+            export: {
+                mode,
+                decimals
+            },
+            shapes: state.shapes.map(shape => {
+                const worldPointsAbs = shape.points.map(p => imageToWorld(p.x, p.y));
+                let offset = { x: 0, y: 0 };
+
+                if (mode === 'centered') {
+                    if (shape.closed && shape.points.length > 2) {
+                         const centerPx = calculatePolygonCentroid(shape.points);
+                         offset = imageToWorld(centerPx.x, centerPx.y);
+                    } else if (shape.points.length > 0) {
+                        // Bbox center
+                        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                        worldPointsAbs.forEach(p => {
+                            minX = Math.min(minX, p.x);
+                            minY = Math.min(minY, p.y);
+                            maxX = Math.max(maxX, p.x);
+                            maxY = Math.max(maxY, p.y);
+                        });
+                        offset = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+                    }
+                } else if (mode === '0 centered' && worldPointsAbs.length > 0) {
+                    offset = { ...worldPointsAbs[0] };
+                }
+
+                const points = worldPointsAbs.map(p => ({
+                    x: formatNumber(p.x - offset.x, decimals),
+                    y: formatNumber(p.y - offset.y, decimals)
+                }));
+
+                return {
+                    id: shape.id,
+                    name: shape.name,
+                    closed: shape.closed,
+                    points: points
+                };
+            })
         };
-        navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+        
+        copyToClipboard(JSON.stringify(data, null, 2));
     });
 
     dom.copyCsvBtn.addEventListener('click', () => {
         const activeShape = getActiveShape();
         if(activeShape) {
-            const csv = activeShape.points.map(p => `${p.x},${p.y}`).join('\n');
-            navigator.clipboard.writeText(csv);
+            const state = getState();
+            const { decimals, mode } = state.export;
+            
+            const worldPointsAbs = activeShape.points.map(p => imageToWorld(p.x, p.y));
+            let offset = { x: 0, y: 0 };
+
+            if (mode === 'centered') {
+                if (activeShape.closed && activeShape.points.length > 2) {
+                     const centerPx = calculatePolygonCentroid(activeShape.points);
+                     offset = imageToWorld(centerPx.x, centerPx.y);
+                } else if (activeShape.points.length > 0) {
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    worldPointsAbs.forEach(p => {
+                        minX = Math.min(minX, p.x);
+                        minY = Math.min(minY, p.y);
+                        maxX = Math.max(maxX, p.x);
+                        maxY = Math.max(maxY, p.y);
+                    });
+                    offset = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+                }
+            } else if (mode === '0 centered' && worldPointsAbs.length > 0) {
+                offset = { ...worldPointsAbs[0] };
+            }
+
+            const csv = worldPointsAbs.map(p => {
+                const x = formatNumber(p.x - offset.x, decimals);
+                const y = formatNumber(p.y - offset.y, decimals);
+                return `${x},${y}`;
+            }).join('\n');
+            copyToClipboard(csv);
         }
     });
+
+    // Export Controls Listeners
+    if (dom.exportModeSelect) {
+        dom.exportModeSelect.addEventListener('change', (e) => {
+            const state = getState();
+            state.export.mode = e.target.value;
+        });
+    }
+
+    if (dom.exportDecimalsInput) {
+        dom.exportDecimalsInput.addEventListener('change', (e) => {
+            const state = getState();
+            let val = parseInt(e.target.value);
+            if (isNaN(val)) val = 2;
+            if (val < 0) val = 0;
+            if (val > 6) val = 6;
+            state.export.decimals = val;
+            e.target.value = val;
+        });
+    }
 
     dom.helpBtn.addEventListener('click', () => dom.helpOverlay.style.display = 'flex');
     dom.closeHelpBtn.addEventListener('click', () => dom.helpOverlay.style.display = 'none');
@@ -295,16 +474,32 @@ export function initEventListeners() {
         // Event delegation removed, handled directly in dom.js
     });
 
+    dom.centerOriginBtn.addEventListener('click', () => {
+        const activeShape = getActiveShape();
+        if (activeShape && !activeShape.locked && activeShape.points.length > 0) {
+            recordHistory();
+            const center = calculatePolygonCentroid(activeShape.points);
+            const { originPxX, originPxY } = state.worldTransform;
+            const dx = originPxX - center.x;
+            const dy = originPxY - center.y;
+            activeShape.points.forEach(p => {
+                p.x += dx;
+                p.y += dy;
+            });
+            updateUI();
+            draw();
+        }
+    });
+
     dom.canvas.addEventListener('mousedown', (e) => {
         dom.canvas.focus();
-        const mouseS = getMousePos(e);
+        const mouseS = getMousePos(e, dom.canvas);
         const mouseImgPos = screenToImagePx(mouseS.x, mouseS.y);
         const { originPxX, originPxY } = state.worldTransform;
         const originS = imagePxToScreen(originPxX, originPxY);
         state.originDragOffsetS = { x: mouseS.x - originS.x, y: mouseS.y - originS.y };
 
-        state.axisSnapState = { centerActive: false, centerTarget: null, xActive: false, xTargetPx: null, yActive: false, yTargetPx: null };
-        state.pointSnapState = { activeToX0: false, activeToY0: false };
+
 
         if (e.button === 1 || state.isSpaceDown) {
             state.isPanning = true;
@@ -313,7 +508,21 @@ export function initEventListeners() {
         }
 
         if (e.button === 0) {
+            // Ctrl-Drag Polygon Logic
+            if (e.ctrlKey || e.metaKey) {
+                const activeShape = getActiveShape();
+                if (activeShape && !activeShape.locked && activeShape.points.length > 0) {
+                    state.isDraggingPolygon = true;
+                    state.isPolygonMoved = false;
+                    state.polygonDragStartPos = { ...mouseImgPos };
+                    state.initialPolygonPoints = activeShape.points.map(p => ({ ...p }));
+                    dom.canvas.style.cursor = 'move';
+                    return;
+                }
+            }
+
             if (state.editImageMode && state.image) {
+                // ... existing image drag logic ...
                 const corners = getImageCorners();
                 const tolerance = 10 / state.viewTransform.scale;
                 let clickedCorner = null;
@@ -369,8 +578,11 @@ export function initEventListeners() {
                 const activeShape = getActiveShape();
                 if (activeShape && !activeShape.locked) {
                     recordHistory();
-                    const { snappedPx } = computePointSnap(mouseImgPos);
-                    activeShape.points.push(snappedPx);
+                    let newPoint = mouseImgPos;
+                    if (state.snapPreview && state.snapPreview.active) {
+                        newPoint = state.snapPreview.snappedPx;
+                    }
+                    activeShape.points.push(newPoint);
                     state.selectedPoint = { shapeId: activeShape.id, pointIndex: activeShape.points.length - 1 };
                 }
             }
@@ -380,7 +592,7 @@ export function initEventListeners() {
     });
 
     dom.canvas.addEventListener('mousemove', (e) => {
-        const mouseS = getMousePos(e);
+        const mouseS = getMousePos(e, dom.canvas);
         const imagePos = screenToImagePx(mouseS.x, mouseS.y);
         const worldPos = imageToWorld(imagePos.x, imagePos.y);
         
@@ -394,6 +606,30 @@ export function initEventListeners() {
             state.lastMousePos = { x: e.clientX, y: e.clientY };
             updateUI();
             draw();
+            return;
+        }
+
+        if (state.isDraggingPolygon) {
+            const currentMouseImgPos = screenToImagePx(mouseS.x, mouseS.y);
+            const dx = currentMouseImgPos.x - state.polygonDragStartPos.x;
+            const dy = currentMouseImgPos.y - state.polygonDragStartPos.y;
+            
+            const activeShape = getActiveShape();
+            if (activeShape) {
+                if (!state.isPolygonMoved) {
+                    recordHistory();
+                    state.isPolygonMoved = true;
+                }
+                
+                activeShape.points = state.initialPolygonPoints.map(p => ({
+                    x: p.x + dx,
+                    y: p.y + dy
+                }));
+                
+                dom.mouseCoordsStatus.textContent = `Polygon Move (Ctrl) | Px: [${Math.round(currentMouseImgPos.x)}, ${Math.round(currentMouseImgPos.y)}]`;
+                updateUI();
+                draw();
+            }
             return;
         }
 
@@ -435,9 +671,14 @@ export function initEventListeners() {
         if (state.isDraggingOrigin) {
             const rawOriginS = { x: mouseS.x - state.originDragOffsetS.x, y: mouseS.y - state.originDragOffsetS.y };
             const rawOriginPx = screenToImagePx(rawOriginS.x, rawOriginS.y);
-            const { snappedPx } = computeAxisSnap(rawOriginPx);
-            state.worldTransform.originPxX = snappedPx.x;
-            state.worldTransform.originPxY = snappedPx.y;
+
+            // The new snap logic handles axis snapping, but dragging the origin itself is a separate concept.
+            // Let's adjust it to use the new snap system for its snapping.
+            const snapResult = computeAdvancedSnap(rawOriginPx, null, null, state);
+            const newOrigin = snapResult.active ? snapResult.snappedPx : rawOriginPx;
+
+            state.worldTransform.originPxX = newOrigin.x;
+            state.worldTransform.originPxY = newOrigin.y;
             updateUI();
             draw();
             return;
@@ -451,14 +692,27 @@ export function initEventListeners() {
                     state.isPointMoved = true;
                 }
                 const rawPointPx = screenToImagePx(mouseS.x, mouseS.y);
-                const { snappedPx } = computePointSnap(rawPointPx, shape.points[state.draggedPoint.pointIndex]);
-                shape.points[state.draggedPoint.pointIndex] = snappedPx;
+                
+                // Advanced Snap
+                const snapResult = (state.isAltDown) ? { active: false } : computeAdvancedSnap(rawPointPx, shape.id, state.draggedPoint.pointIndex, state);
+                state.snapState = snapResult;
+                const newPos = snapResult.active ? snapResult.snappedPx : rawPointPx;
+
+                shape.points[state.draggedPoint.pointIndex] = newPos;
                 updateUI();
             }
         } else {
             const imagePos = screenToImagePx(mouseS.x, mouseS.y);
             state.hoveredPoint = findPointAt(imagePos.x, imagePos.y);
-            // ... other hover logic ...
+            
+            // Placement Preview
+            const activeShape = getActiveShape();
+            if (activeShape && !activeShape.locked && !state.hoveredPoint) {
+                 const snapResult = (state.isAltDown) ? { active: false } : computeAdvancedSnap(imagePos, activeShape.id, null, state);
+                 state.snapPreview = snapResult;
+            } else {
+                state.snapPreview = { active: false };
+            }
         }
         draw();
     });
@@ -495,6 +749,13 @@ export function initEventListeners() {
         }
         if (state.isDraggingImage) {
             state.isDraggingImage = false;
+        }
+        if (state.isDraggingPolygon) {
+            state.isDraggingPolygon = false;
+            state.isPolygonMoved = false;
+            state.initialPolygonPoints = null;
+            state.polygonDragStartPos = null;
+            dom.canvas.style.cursor = 'crosshair';
         }
         if (state.isDraggingImageCorner) {
             state.isDraggingImageCorner = false;
@@ -563,6 +824,10 @@ export function initEventListeners() {
             state.selectedPoint = null;
             draw();
         }
+        if (e.key === 'Alt') {
+            state.isAltDown = true;
+            draw();
+        }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -571,6 +836,10 @@ export function initEventListeners() {
         if (e.key === ' ') {
             state.isSpaceDown = false;
             dom.canvas.style.cursor = 'crosshair';
+        }
+        if (e.key === 'Alt') {
+            state.isAltDown = false;
+            draw();
         }
     });
 

@@ -1,26 +1,29 @@
 import { getState } from './state.js';
-import { dom } from './dom.js';
 
 export const imageToWorld = (imageX, imageY) => {
     const state = getState();
-    const { originPxX, originPxY, pixelsPerUnit } = state.worldTransform;
+    const { originPxX, originPxY, pixelsPerUnit, yMode } = state.worldTransform;
     if (pixelsPerUnit === 0) return { x: Infinity, y: Infinity };
     const worldX = (imageX - originPxX) / pixelsPerUnit;
-    const worldY = (originPxY - imageY) / pixelsPerUnit;
+    const worldY = yMode === 'math' 
+        ? (originPxY - imageY) / pixelsPerUnit 
+        : (imageY - originPxY) / pixelsPerUnit;
     return { x: worldX, y: worldY };
 };
 
 export const worldToImage = (worldX, worldY) => {
     const state = getState();
-    const { originPxX, originPxY, pixelsPerUnit } = state.worldTransform;
+    const { originPxX, originPxY, pixelsPerUnit, yMode } = state.worldTransform;
     if (pixelsPerUnit === 0) return { x: Infinity, y: Infinity };
     const imageX = worldX * pixelsPerUnit + originPxX;
-    const imageY = originPxY - worldY * pixelsPerUnit;
+    const imageY = yMode === 'math'
+        ? originPxY - worldY * pixelsPerUnit
+        : originPxY + worldY * pixelsPerUnit;
     return { x: imageX, y: imageY };
 };
 
-export const getMousePos = (e) => {
-    const rect = dom.canvas.getBoundingClientRect();
+export const getMousePos = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 };
 
@@ -86,7 +89,17 @@ export function calculateGridInterval() {
     const pixelsPerUnit = state.worldTransform.pixelsPerUnit;
     const scale = state.viewTransform.scale;
 
-    const worldUnitsPerTargetSpacing = targetPixelSpacing / (pixelsPerUnit * scale);
+    const effectivePixelsPerUnit = pixelsPerUnit * scale;
+
+    if (Math.abs(effectivePixelsPerUnit) < 1e-6) {
+        return { major: 1, minor: 0.2 }; // Default interval if too zoomed out/in or invalid scale
+    }
+
+    const worldUnitsPerTargetSpacing = targetPixelSpacing / effectivePixelsPerUnit;
+
+    if (worldUnitsPerTargetSpacing <= 0) {
+        return { major: 1, minor: 0.2 }; // Handle negative pixelsPerUnit from input
+    }
 
     const power = Math.pow(10, Math.floor(Math.log10(worldUnitsPerTargetSpacing)));
     const normalizedInterval = worldUnitsPerTargetSpacing / power;
@@ -120,145 +133,194 @@ export function findPointAt(imgX, imgY) {
     return null;
 }
 
-export function computeAxisSnap(rawOriginPx) {
-    const state = getState();
-    const snapConfig = { centerIn: 10, centerOut: 16, axisIn: 10, axisOut: 16 };
-    let snappedPx = { ...rawOriginPx };
 
-    const allPoints = state.shapes.flatMap(s => s.visible && !s.locked ? s.points.map(p => ({ ...p, shapeId: s.id })) : []);
-    const rawOriginS = imagePxToScreen(rawOriginPx.x, rawOriginPx.y);
 
-    // --- Center Snap (Priority 1) ---
-    if (state.axisSnapState.centerActive) {
-        const targetS = imagePxToScreen(state.axisSnapState.centerTarget.x, state.axisSnapState.centerTarget.y);
-        const distS = Math.hypot(targetS.x - rawOriginS.x, targetS.y - rawOriginS.y);
-        if (distS < snapConfig.centerOut) {
-            snappedPx = { x: state.axisSnapState.centerTarget.x, y: state.axisSnapState.centerTarget.y };
-            return { snappedPx, snapIndicators: [] }; // Early exit, center snap holds
-        } else {
-            state.axisSnapState.centerActive = false;
-            state.axisSnapState.centerTarget = null;
-        }
+export function calculatePolygonCentroid(points) {
+    if (!points || points.length === 0) return { x: 0, y: 0 };
+    if (points.length === 1) return { x: points[0].x, y: points[0].y };
+    if (points.length === 2) return { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
+
+    let signedArea = 0;
+    let cx = 0;
+    let cy = 0;
+
+    for (let i = 0; i < points.length; i++) {
+        const x0 = points[i].x;
+        const y0 = points[i].y;
+        const x1 = points[(i + 1) % points.length].x;
+        const y1 = points[(i + 1) % points.length].y;
+
+        const a = x0 * y1 - x1 * y0;
+        signedArea += a;
+        cx += (x0 + x1) * a;
+        cy += (y0 + y1) * a;
     }
 
-    let bestCenterCandidate = null;
-    let minCenterDist = Infinity;
-    for (const p of allPoints) {
-        const pS = imagePxToScreen(p.x, p.y);
-        const distS = Math.hypot(pS.x - rawOriginS.x, pS.y - rawOriginS.y);
-        if (distS < snapConfig.centerIn && distS < minCenterDist) {
-            minCenterDist = distS;
-            bestCenterCandidate = p;
-        }
+    signedArea *= 0.5;
+    
+    if (Math.abs(signedArea) < 1e-6) {
+        // Fallback to bbox center
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        points.forEach(p => {
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x);
+            maxY = Math.max(maxY, p.y);
+        });
+        return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
     }
 
-    if (bestCenterCandidate) {
-        state.axisSnapState.centerActive = true;
-        state.axisSnapState.centerTarget = { x: bestCenterCandidate.x, y: bestCenterCandidate.y };
-        snappedPx = { x: bestCenterCandidate.x, y: bestCenterCandidate.y };
-        return { snappedPx, snapIndicators: [] };
-    }
+    cx /= (6 * signedArea);
+    cy /= (6 * signedArea);
 
-    // --- Axis Snap (Priority 2) ---
-    // X-Axis
-    if (state.axisSnapState.xActive) {
-        const targetS = imagePxToScreen(state.axisSnapState.xTargetPx, rawOriginPx.y);
-        const distS = Math.abs(targetS.x - rawOriginS.x);
-        if (distS < snapConfig.axisOut) {
-            snappedPx.x = state.axisSnapState.xTargetPx;
-        } else {
-            state.axisSnapState.xActive = false;
-            state.axisSnapState.xTargetPx = null;
-        }
-    } else {
-        let bestXCandidate = null;
-        let minXDist = Infinity;
-        for (const p of allPoints) {
-            const pS = imagePxToScreen(p.x, p.y);
-            const distS = Math.abs(pS.x - rawOriginS.x);
-            if (distS < snapConfig.axisIn && distS < minXDist) {
-                minXDist = distS;
-                bestXCandidate = p;
-            }
-        }
-        if (bestXCandidate) {
-            state.axisSnapState.xActive = true;
-            state.axisSnapState.xTargetPx = bestXCandidate.x;
-            snappedPx.x = bestXCandidate.x;
-        }
-    }
-
-    // Y-Axis
-    if (state.axisSnapState.yActive) {
-        const targetS = imagePxToScreen(rawOriginPx.x, state.axisSnapState.yTargetPx);
-        const distS = Math.abs(targetS.y - rawOriginS.y);
-        if (distS < snapConfig.axisOut) {
-            snappedPx.y = state.axisSnapState.yTargetPx;
-        } else {
-            state.axisSnapState.yActive = false;
-            state.axisSnapState.yTargetPx = null;
-        }
-    } else {
-        let bestYCandidate = null;
-        let minYDist = Infinity;
-        for (const p of allPoints) {
-            const pS = imagePxToScreen(p.x, p.y);
-            const distS = Math.abs(pS.y - rawOriginS.y);
-            if (distS < snapConfig.axisIn && distS < minYDist) {
-                minYDist = distS;
-                bestYCandidate = p;
-            }
-        }
-        if (bestYCandidate) {
-            state.axisSnapState.yActive = true;
-            state.axisSnapState.yTargetPx = bestYCandidate.y;
-            snappedPx.y = bestYCandidate.y;
-        }
-    }
-
-    return { snappedPx, snapIndicators: [] };
+    return { x: cx, y: cy };
 }
 
-export function computePointSnap(rawPointPx, ignorePoint = null) {
-    const state = getState();
-    const snapConfig = { axisIn: 10, axisOut: 16 };
-    let snappedPx = { ...rawPointPx };
-    const { originPxX, originPxY } = state.worldTransform;
+export const formatNumber = (n, decimals) => {
+    if (decimals === 0) {
+        return Math.round(n);
+    }
+    return Number(n.toFixed(decimals));
+};
 
-    const rawPointS = imagePxToScreen(rawPointPx.x, rawPointPx.y);
-    const originS = imagePxToScreen(originPxX, originPxY);
+export function computeAdvancedSnap(rawImagePos, excludeShapeId, excludePointIndex, state) {
+    if (!state.snapSettings.enabled || state.isAltDown) {
+        return { active: false, snappedPx: rawImagePos, type: null, targetRef: null, rawPx: rawImagePos };
+    }
 
-    // Snap to X-Axis (Y=0)
-    if (state.pointSnapState.activeToY0) {
-        const distS = Math.abs(rawPointS.y - originS.y);
-        if (distS < snapConfig.axisOut) {
-            snappedPx.y = originPxY;
-        } else {
-            state.pointSnapState.activeToY0 = false;
-        }
-    } else {
-        const distS = Math.abs(rawPointS.y - originS.y);
-        if (distS < snapConfig.axisIn) {
-            state.pointSnapState.activeToY0 = true;
-            snappedPx.y = originPxY;
+    const rawScreen = imagePxToScreen(rawImagePos.x, rawImagePos.y);
+    const snapIn = state.snapSettings.snapInPx;
+    const snapOut = state.snapSettings.snapOutPx;
+    
+    // Check if we are currently snapped and should hold (hysteresis)
+    if (state.snapState.active && state.snapState.snappedPx) {
+        const snappedScreen = imagePxToScreen(state.snapState.snappedPx.x, state.snapState.snappedPx.y);
+        const distToTarget = Math.hypot(rawScreen.x - snappedScreen.x, rawScreen.y - snappedScreen.y);
+        
+        if (distToTarget < snapOut) {
+            return { ...state.snapState, rawPx: rawImagePos }; // Keep snap, update rawPx for reference if needed
         }
     }
 
-    // Snap to Y-Axis (X=0)
-    if (state.pointSnapState.activeToX0) {
-        const distS = Math.abs(rawPointS.x - originS.x);
-        if (distS < snapConfig.axisOut) {
-            snappedPx.x = originPxX;
-        } else {
-            state.pointSnapState.activeToX0 = false;
+    let bestCandidate = null;
+    let minDist = snapIn;
+
+    // 1. Axis Snap
+    if (state.snapSettings.axis) {
+        const originScreen = imagePxToScreen(state.worldTransform.originPxX, state.worldTransform.originPxY);
+        
+        // X-Axis (vertical line at x=0) -> raw.x matches origin.x
+        // Distance is |rawScreen.x - originScreen.x|
+        const distX = Math.abs(rawScreen.x - originScreen.x);
+        if (distX < minDist) {
+            minDist = distX;
+            bestCandidate = {
+                active: true,
+                type: 'axis',
+                targetRef: 'axisY', // Snapped to Y axis (x=0)
+                snappedPx: { x: state.worldTransform.originPxX, y: rawImagePos.y }
+            };
         }
-    } else {
-        const distS = Math.abs(rawPointS.x - originS.x);
-        if (distS < snapConfig.axisIn) {
-            state.pointSnapState.activeToX0 = true;
-            snappedPx.x = originPxX;
+
+        // Y-Axis (horizontal line at y=0) -> raw.y matches origin.y
+        const distY = Math.abs(rawScreen.y - originScreen.y);
+        if (distY < minDist) {
+            minDist = distY;
+            bestCandidate = {
+                active: true,
+                type: 'axis',
+                targetRef: 'axisX', // Snapped to X axis (y=0)
+                snappedPx: { x: rawImagePos.x, y: state.worldTransform.originPxY }
+            };
+        }
+        
+        // Origin (both)
+        const distOrigin = Math.hypot(rawScreen.x - originScreen.x, rawScreen.y - originScreen.y);
+        if (distOrigin < minDist) {
+            minDist = distOrigin;
+            bestCandidate = {
+                active: true,
+                type: 'axis',
+                targetRef: 'origin',
+                snappedPx: { x: state.worldTransform.originPxX, y: state.worldTransform.originPxY }
+            };
         }
     }
 
-    return { snappedPx, snapIndicators: [] };
+    // 2. Vertex Snap
+    if (state.snapSettings.vertex) {
+        state.shapes.forEach(shape => {
+            if (shape.id === excludeShapeId && excludePointIndex === null) return; // Skip active shape if configured (but prompt says skip active shape by default)
+            // Prompt: "Standard: Kandidaten sind alle Shapes außer dem aktiven Shape"
+            if (shape.id === excludeShapeId) return; 
+            if (!shape.visible || shape.locked) return;
+
+            shape.points.forEach((p, idx) => {
+                if (shape.id === excludeShapeId && idx === excludePointIndex) return;
+                const pScreen = imagePxToScreen(p.x, p.y);
+                const dist = Math.hypot(rawScreen.x - pScreen.x, rawScreen.y - pScreen.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestCandidate = {
+                        active: true,
+                        type: 'vertex',
+                        targetRef: { shapeId: shape.id, pointIndex: idx },
+                        snappedPx: { x: p.x, y: p.y }
+                    };
+                }
+            });
+        });
+    }
+
+    // 3. Edge Snap
+    if (state.snapSettings.edge) {
+        state.shapes.forEach(shape => {
+            if (shape.id === excludeShapeId) return;
+            if (!shape.visible || shape.locked) return;
+            if (shape.points.length < 2) return;
+
+            const count = shape.closed ? shape.points.length : shape.points.length - 1;
+            for (let i = 0; i < count; i++) {
+                const p1 = shape.points[i];
+                const p2 = shape.points[(i + 1) % shape.points.length];
+                
+                const p1Screen = imagePxToScreen(p1.x, p1.y);
+                const p2Screen = imagePxToScreen(p2.x, p2.y);
+
+                // Project rawScreen onto segment p1Screen-p2Screen
+                const l2 = (p1Screen.x - p2Screen.x)**2 + (p1Screen.y - p2Screen.y)**2;
+                if (l2 === 0) continue;
+                
+                let t = ((rawScreen.x - p1Screen.x) * (p2Screen.x - p1Screen.x) + (rawScreen.y - p1Screen.y) * (p2Screen.y - p1Screen.y)) / l2;
+                t = Math.max(0, Math.min(1, t));
+                
+                const projScreen = {
+                    x: p1Screen.x + t * (p2Screen.x - p1Screen.x),
+                    y: p1Screen.y + t * (p2Screen.y - p1Screen.y)
+                };
+                
+                const dist = Math.hypot(rawScreen.x - projScreen.x, rawScreen.y - projScreen.y);
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    // Calculate snapped position in Image Space using t
+                    const snappedImageX = p1.x + t * (p2.x - p1.x);
+                    const snappedImageY = p1.y + t * (p2.y - p1.y);
+                    
+                    bestCandidate = {
+                        active: true,
+                        type: 'edge',
+                        targetRef: { shapeId: shape.id, edgeIndex: i },
+                        snappedPx: { x: snappedImageX, y: snappedImageY }
+                    };
+                }
+            }
+        });
+    }
+
+    if (bestCandidate) {
+        return { ...bestCandidate, rawPx: rawImagePos };
+    }
+
+    return { active: false, snappedPx: rawImagePos, type: null, targetRef: null, rawPx: rawImagePos };
 }

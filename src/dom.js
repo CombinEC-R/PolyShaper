@@ -2,51 +2,76 @@ import { getState, getActiveShape, recordHistory } from './state.js';
 import { imageToWorld } from './utils.js';
 import { draw } from './canvas.js';
 
-export const dom = {
-    canvas: document.getElementById('canvas'),
-    ctx: document.getElementById('canvas').getContext('2d'),
-    canvasWrapper: document.querySelector('.canvas-wrapper'),
-    loadImageBtn: document.getElementById('load-image-btn'),
-    fileInput: document.getElementById('file-input'),
-    fitBtn: document.getElementById('fit-btn'),
-    resetBtn: document.getElementById('reset-btn'),
-    zoomSlider: document.getElementById('zoom-slider'),
-    zoomInBtn: document.getElementById('zoom-in-btn'),
-    zoomOutBtn: document.getElementById('zoom-out-btn'),
-    undoBtn: document.getElementById('undo-btn'),
-    redoBtn: document.getElementById('redo-btn'),
-    editImageModeCheckbox: document.getElementById('edit-image-mode-checkbox'),
-    imageScaleInput: document.getElementById('image-scale-input'),
-    imageRotationInput: document.getElementById('image-rotation-input'),
-    flipXBtn: document.getElementById('flip-x-btn'),
-    flipYBtn: document.getElementById('flip-y-btn'),
-    originXInput: document.getElementById('origin-x-input'),
-    originYInput: document.getElementById('origin-y-input'),
-    setOriginBtn: document.getElementById('set-origin-btn'),
-    resetOriginBtn: document.getElementById('reset-origin-btn'),
-    scaleInput: document.getElementById('scale-input'),
-    showLabelsCheckbox: document.getElementById('show-labels-checkbox'),
-    snapEnableCheckbox: document.getElementById('snap-enable-checkbox'),
-    snapDistSlider: document.getElementById('snap-dist-slider'),
-    snapDistLabel: document.getElementById('snap-dist-label'),
-    pointsTbody: document.getElementById('points-tbody'),
-    copyJsonBtn: document.getElementById('copy-json-btn'),
-    copyCsvBtn: document.getElementById('copy-csv-btn'),
-    mouseCoordsStatus: document.getElementById('mouse-coords'),
-    zoomStatus: document.getElementById('zoom-status'),
-    helpBtn: document.getElementById('help-btn'),
-    helpOverlay: document.getElementById('help-overlay'),
-    closeHelpBtn: document.getElementById('close-help-btn'),
+export const dom = {};
+
+let renameState = { active: false, shapeId: null };
+
+export function initDom() {
+    dom.canvas = document.getElementById('canvas');
+    dom.ctx = document.getElementById('canvas').getContext('2d');
+    dom.canvasWrapper = document.querySelector('.canvas-wrapper');
+    dom.loadImageBtn = document.getElementById('load-image-btn');
+    dom.fileInput = document.getElementById('file-input');
+    dom.fitBtn = document.getElementById('fit-btn');
+    dom.resetBtn = document.getElementById('reset-btn');
+    dom.zoomSlider = document.getElementById('zoom-slider');
+    dom.zoomInBtn = document.getElementById('zoom-in-btn');
+    dom.zoomOutBtn = document.getElementById('zoom-out-btn');
+    dom.undoBtn = document.getElementById('undo-btn');
+    dom.redoBtn = document.getElementById('redo-btn');
+    dom.editImageModeCheckbox = document.getElementById('edit-image-mode-checkbox');
+    dom.imageScaleInput = document.getElementById('image-scale-input');
+    dom.imageRotationInput = document.getElementById('image-rotation-input');
+    dom.flipXBtn = document.getElementById('flip-x-btn');
+    dom.flipYBtn = document.getElementById('flip-y-btn');
+    dom.originXInput = document.getElementById('origin-x-input');
+    dom.originYInput = document.getElementById('origin-y-input');
+    dom.setOriginBtn = document.getElementById('set-origin-btn');
+    dom.resetOriginBtn = document.getElementById('reset-origin-btn');
+    dom.scaleInput = document.getElementById('scale-input');
+    dom.showLabelsCheckbox = document.getElementById('show-labels-checkbox');
+    dom.snapEnabledCheckbox = document.getElementById('snap-enabled-checkbox');
+    dom.snapVertexCheckbox = document.getElementById('snap-vertex-checkbox');
+    dom.snapEdgeCheckbox = document.getElementById('snap-edge-checkbox');
+    dom.snapAxisCheckbox = document.getElementById('snap-axis-checkbox');
+    dom.snapInInput = document.getElementById('snap-in-input');
+    dom.snapOutInput = document.getElementById('snap-out-input');
+    dom.pointsTbody = document.getElementById('points-tbody');
+    dom.copyJsonBtn = document.getElementById('copy-json-btn');
+    dom.copyCsvBtn = document.getElementById('copy-csv-btn');
+    dom.exportModeSelect = document.getElementById('export-mode-select');
+    dom.exportDecimalsInput = document.getElementById('export-decimals-input');
+    dom.mouseCoordsStatus = document.getElementById('mouse-coords');
+    dom.zoomStatus = document.getElementById('zoom-status');
+    dom.yModeStatus = document.getElementById('y-mode-status');
+    dom.yModeMathRadio = document.getElementById('y-mode-math');
+    dom.yModeGpuRadio = document.getElementById('y-mode-gpu');
+    dom.helpBtn = document.getElementById('help-btn');
+    dom.helpOverlay = document.getElementById('help-overlay');
+    dom.closeHelpBtn = document.getElementById('close-help-btn');
     
-    addShapeBtn: document.getElementById('add-shape-btn'),
-    duplicateShapeBtn: document.getElementById('duplicate-shape-btn'),
-    deleteShapeBtn: document.getElementById('delete-shape-btn'),
-    clearPointsBtn: document.getElementById('clear-points-btn'),
-    shapesList: document.getElementById('shapes-list'),
-    shapeClosedCheckbox: document.getElementById('shape-closed-checkbox'),
-    shapeColorInput: document.getElementById('shape-color-input'),
-    shapeOpacityInput: document.getElementById('shape-opacity-input'),
-};
+    dom.addShapeBtn = document.getElementById('add-shape-btn');
+    dom.duplicateShapeBtn = document.getElementById('duplicate-shape-btn');
+    dom.deleteShapeBtn = document.getElementById('delete-shape-btn');
+    dom.clearPointsBtn = document.getElementById('clear-points-btn');
+    dom.shapesList = document.getElementById('shapes-list');
+    dom.shapeClosedCheckbox = document.getElementById('shape-closed-checkbox');
+    dom.shapeColorInput = document.getElementById('shape-color-input');
+    dom.shapeOpacityInput = document.getElementById('shape-opacity-input');
+    dom.centerOriginBtn = document.getElementById('center-origin-btn');
+
+    // Event Delegation for Rename
+    dom.shapesList.addEventListener('dblclick', (e) => {
+        const nameEl = e.target.closest('[data-action="rename"]');
+        if (!nameEl) return;
+        
+        const shapeId = parseInt(nameEl.dataset.shapeId, 10);
+        if (!isNaN(shapeId)) {
+            renameState = { active: true, shapeId: shapeId };
+            updateUI();
+        }
+    });
+}
 
 function updateShapesListUI() {
     const state = getState();
@@ -78,32 +103,58 @@ function updateShapesListUI() {
         `;
         item.appendChild(colorIndicator);
 
-        // Name (editable on double click)
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = `${shape.name} (${shape.points.length})`;
-        nameSpan.style.cssText = 'flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none;';
-        nameSpan.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
+        // Name or Input
+        if (renameState.active && renameState.shapeId === shape.id) {
             const input = document.createElement('input');
             input.type = 'text';
             input.value = shape.name;
-            input.style.cssText = 'width: 100%; background: var(--bg-tertiary); color: white; border: none; padding: 2px;';
+            input.style.cssText = 'flex-grow: 1; width: 100%; background: var(--bg-tertiary); color: white; border: 1px solid var(--accent-color); padding: 2px;';
             
-            const saveName = () => {
-                shape.name = input.value || shape.name;
-                recordHistory();
+            // Stop propagation to prevent row selection
+            input.addEventListener('click', (e) => e.stopPropagation());
+            input.addEventListener('dblclick', (e) => e.stopPropagation());
+            input.addEventListener('mousedown', (e) => e.stopPropagation());
+
+            const commit = () => {
+                const newName = input.value.trim();
+                if (newName && newName !== shape.name) {
+                    recordHistory();
+                    shape.name = newName;
+                }
+                renameState = { active: false, shapeId: null };
                 updateUI();
             };
 
-            input.addEventListener('blur', saveName);
-            input.addEventListener('keydown', (ev) => {
-                if (ev.key === 'Enter') saveName();
+            const cancel = () => {
+                renameState = { active: false, shapeId: null };
+                updateUI();
+            };
+
+            input.addEventListener('blur', commit);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    commit();
+                } else if (e.key === 'Escape') {
+                    cancel();
+                }
             });
+
+            item.appendChild(input);
             
-            item.replaceChild(input, nameSpan);
-            input.focus();
-        });
-        item.appendChild(nameSpan);
+            // Auto-focus and select all
+            requestAnimationFrame(() => {
+                input.focus();
+                input.select();
+            });
+
+        } else {
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = `${shape.name} (${shape.points.length})`;
+            nameSpan.style.cssText = 'flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none;';
+            nameSpan.dataset.action = 'rename';
+            nameSpan.dataset.shapeId = shape.id;
+            item.appendChild(nameSpan);
+        }
 
         // Visible Toggle
         const eyeBtn = document.createElement('button');
@@ -213,6 +264,7 @@ export function updateUI() {
         
         dom.shapeOpacityInput.value = activeShape.opacity;
         dom.shapeOpacityInput.disabled = activeShape.locked;
+        dom.centerOriginBtn.disabled = activeShape.locked || activeShape.points.length === 0;
 
         dom.deleteShapeBtn.disabled = false;
         dom.duplicateShapeBtn.disabled = false;
@@ -227,6 +279,7 @@ export function updateUI() {
         dom.shapeClosedCheckbox.disabled = true;
         dom.shapeColorInput.disabled = true;
         dom.shapeOpacityInput.disabled = true;
+        dom.centerOriginBtn.disabled = true;
         dom.deleteShapeBtn.disabled = true;
         dom.duplicateShapeBtn.disabled = true;
         dom.clearPointsBtn.disabled = true;
@@ -234,6 +287,12 @@ export function updateUI() {
 
     dom.zoomSlider.value = state.viewTransform.scale;
     dom.zoomStatus.textContent = `Zoom: ${(state.viewTransform.scale * 100).toFixed(0)}%`;
+    dom.yModeStatus.textContent = `Y-Mode: ${state.worldTransform.yMode === 'math' ? 'Math' : 'GPU'}`;
+    if (state.worldTransform.yMode === 'math') {
+        dom.yModeMathRadio.checked = true;
+    } else {
+        dom.yModeGpuRadio.checked = true;
+    }
     dom.editImageModeCheckbox.checked = state.editImageMode;
     dom.imageScaleInput.value = state.imageTransform.scale;
     dom.imageRotationInput.value = state.imageTransform.rotation;
@@ -242,4 +301,16 @@ export function updateUI() {
     dom.scaleInput.value = state.worldTransform.pixelsPerUnit;
     dom.undoBtn.disabled = state.history.length === 0;
     dom.redoBtn.disabled = state.redoStack.length === 0;
+
+    dom.snapEnabledCheckbox.checked = state.snapSettings.enabled;
+    dom.snapVertexCheckbox.checked = state.snapSettings.vertex;
+    dom.snapEdgeCheckbox.checked = state.snapSettings.edge;
+    dom.snapAxisCheckbox.checked = state.snapSettings.axis;
+    dom.snapInInput.value = state.snapSettings.snapInPx;
+    dom.snapOutInput.value = state.snapSettings.snapOutPx;
+
+    if (dom.exportDecimalsInput) {
+        dom.exportDecimalsInput.value = state.export.decimals;
+    }
+    dom.exportModeSelect.value = state.export.mode;
 }

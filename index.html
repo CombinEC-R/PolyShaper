@@ -134,12 +134,15 @@
             max-width: 500px;
         }
         .help-content h2 { margin-top: 0; }
-        .help-content kbd {
-            background-color: var(--bg-tertiary);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
+        .radio-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
         }
+        .radio-group label {
+            cursor: pointer;
+        }
+
     </style>
 </head>
 <body>
@@ -148,6 +151,7 @@
             <canvas id="canvas" tabindex="0" style="outline: none;"></canvas>
             <div class="status-bar">
                 <span id="mouse-coords">Px: [-, -] | World: [-, -]</span>
+                <span id="y-mode-status">Y-Mode: Math</span>
                 <span id="zoom-status">Zoom: 100%</span>
             </div>
         </div>
@@ -195,6 +199,13 @@
             <div class="control-group">
                 <label>Pixels per Unit: <input type="number" id="scale-input" value="1"></label>
             </div>
+            <div class="control-group">
+                <label>Y-Axis Mode</label>
+                <div class="radio-group">
+                    <input type="radio" id="y-mode-math" name="y-mode" value="math" checked><label for="y-mode-math">Math (Y up)</label>
+                    <input type="radio" id="y-mode-gpu" name="y-mode" value="gpu"><label for="y-mode-gpu">GPU (Y down)</label>
+                </div>
+            </div>
 
             <h3>Shapes/Layers</h3>
             <div class="control-group">
@@ -212,6 +223,7 @@
                 <label><input type="checkbox" id="shape-closed-checkbox"> Closed</label>
                 <label style="display: flex; align-items: center; gap: 0.5rem;">Color: <input type="color" id="shape-color-input" style="width: 40px; height: 24px; padding: 0; border: none;"></label>
                 <label>Opacity: <input type="range" id="shape-opacity-input" min="0" max="1" step="0.1"></label>
+                <button id="center-origin-btn" title="Moves shape so its center is at world origin">Center to (0,0)</button>
             </div>
 
             <h3>Global Settings</h3>
@@ -221,9 +233,14 @@
 
             <h3>Snapping</h3>
             <div class="control-group">
-                <label><input type="checkbox" id="snap-enable-checkbox"> Enable Snapping</label>
-                <label>Snap Distance (px): <span id="snap-dist-label">10</span></label>
-                <input type="range" id="snap-dist-slider" min="1" max="50" value="10">
+                <label><input type="checkbox" id="snap-enabled-checkbox" checked> Enable Snapping</label>
+                <div style="margin-left: 1rem; display: flex; flex-direction: column; gap: 0.25rem;">
+                    <label><input type="checkbox" id="snap-vertex-checkbox" checked> Vertices</label>
+                    <label><input type="checkbox" id="snap-edge-checkbox" checked> Edges</label>
+                    <label><input type="checkbox" id="snap-axis-checkbox" checked> Axes</label>
+                </div>
+                <label>Snap In (px): <input type="number" id="snap-in-input" value="10" min="1" max="50"></label>
+                <label>Snap Out (px): <input type="number" id="snap-out-input" value="16" min="1" max="50"></label>
             </div>
 
             <h3>Points</h3>
@@ -232,6 +249,17 @@
                     <thead><tr><th>#</th><th>Pixel (x, y)</th><th>World (x, y)</th></tr></thead>
                     <tbody id="points-tbody"></tbody>
                 </table>
+            </div>
+
+            <h3>Export</h3>
+            <div class="control-group">
+                <label>Mode:</label>
+                <select id="export-mode-select" style="width: 100%; margin-bottom: 0.5rem; background-color: var(--bg-tertiary); color: var(--text-primary); border: none; padding: 4px; border-radius: 4px;">
+                    <option value="absolute">Absolute (World)</option>
+                    <option value="centered">Centered (Relative to Center)</option>
+                    <option value="origin">Origin (Relative to 1st Point)</option>
+                </select>
+                <label>Decimals: <input type="number" id="export-decimals-input" min="0" max="6" value="2"></label>
             </div>
             <div class="control-group" style="flex-direction: row; gap: 0.5rem;">
                 <button id="copy-json-btn" style="flex-grow: 1;">Copy JSON</button>
