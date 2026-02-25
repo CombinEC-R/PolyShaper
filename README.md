@@ -1,72 +1,72 @@
 # Polygon Coordinate Tool
 
-Browser Tool zum Laden eines Bildes und Erstellen von Polygon Shapes per Klick. Fokus auf sauberes Editieren, verlässliches Pan und Zoom, ein klar definiertes Koordinatensystem mit Ursprung, sowie stabile Exporte für Weiterverarbeitung.
+A browser tool to load an image and create polygon shapes by clicking points. The focus is reliable editing, stable pan and zoom, a clearly defined coordinate system with a movable origin, and exports that are easy to consume downstream.
 
 ## Features
 
-### Bild und Canvas
-- Drag and Drop oder Datei auswählen
-- High DPI Rendering für scharfes Canvas
-- Pan per Space plus Drag oder Mitteltaste Drag
-- Zoom per Mausrad um den Mauszeiger
-- Zoombar Slider mit Prozentanzeige und Plus Minus
-- Fit to Screen und Reset View
+### Image and canvas
+- Load image via drag and drop or file picker
+- High DPI rendering for a sharp canvas
+- Pan with Space plus drag or middle mouse drag
+- Wheel zoom around the mouse cursor
+- Zoom bar slider with percent display and plus minus controls
+- Fit to screen and reset view
 
-### Shapes und Punkte
-- Mehrere Shapes in einer Layer Liste
-- Shape anlegen, duplizieren, löschen, Punkte leeren
-- Aktivieren durch Klick in der Liste
-- Rename per Doppelklick auf den Namen
-- Punkte setzen per Klick
-- Punkte selektieren, verschieben, löschen
-- Multi Select und Box Select
-- Insert on Edge zum Einfügen eines Punktes auf einer Kante
-- Nudge per Pfeiltasten, optional schneller mit Shift
-- Reorder von Punkten
+### Shapes and points
+- Multiple shapes in a layers list
+- Create, duplicate, delete shapes, clear all points
+- Activate a shape by clicking it in the list
+- Rename a shape by double clicking its name
+- Add points by click
+- Select, drag, and delete points
+- Multi select and box select
+- Insert on edge to add a point on a segment
+- Nudge with arrow keys, faster with Shift
+- Reorder points
 
-### Koordinatensystem
-- Sichtbare Achsen für X und Y mit Tick Marks und Labels
-- Ursprung frei positionierbar, Achsen Snapping möglich
-- Zahlen Labels sind immer kontrastisch zum Hintergrund durch Halo und optional Backplate
-- Umschalter für Y Mode
-  - Math Mode, Y positiv nach oben
-  - GPU Mode, Y positiv nach unten, nach oben wird negativ
-- Center Snap des Achsenkreuzes auf Punkte, stabil mit Hysterese
+### Coordinate system
+- Visible X and Y axes with tick marks and labels
+- Free origin placement, axis snapping supported
+- Axis labels stay readable using halo and optional backplate for contrast
+- Y mode switch
+  - Math mode, Y positive up
+  - GPU mode, Y positive down, up becomes negative
+- Origin center snap to points with stable hysteresis
 
 ### Snapping
-- Enable Snapping Toggle
-- Magnetisches Verhalten mit snap in und snap out
-- Alt hält Snapping temporär aus
-- Punkt Snapping beim Platzieren und beim Verschieben
-  - an Achsen X0 und Y0
-  - an andere Punkte
-  - an Kanten Projektion auf Segment
-- Preview vor dem Platzieren
-  - Marker am Snap Ziel, optional pulsierender Ring
-- Snap Scope Option
-  - Active Shape only
-  - Active plus Hovered
-  - All visible unlocked
+- Enable snapping toggle
+- Magnetic behavior with snap in and snap out thresholds
+- Hold Alt to temporarily disable snapping
+- Point snapping on placement and on drag
+  - to axes X0 and Y0
+  - to other polygon vertices
+  - to other polygon edges using segment projection
+- Pre placement preview
+  - marker at the snap target, optional pulsing hollow circle
+- Snap scope option
+  - active shape only
+  - active plus hovered
+  - all visible unlocked
 
-### Polygon Move und Centering
-- Ctrl oder Cmd Drag verschiebt das komplette aktive Polygon
-- Button zum Zentrieren des aktiven Polygons auf World 0,0 ohne Formänderung
+### Polygon move and centering
+- Ctrl or Cmd drag moves the full active polygon
+- Button to center the active polygon to world 0,0 without changing the shape
 
-### Export und Import
-- JSON und CSV Copy und Download
-- Dezimalstellen Einsteller für Export, Standard 2
-- Export Modus Auswahl
-  - absolute, Punkte im aktuellen World Koordinatensystem
-  - centered, Polygon Center auf 0,0
-  - 0 centered, erster Punkt auf 0,0
-- Pro Shape nur eine points Liste im Export, basierend auf Modus und Dezimals
-- Optional Project JSON Import und Autosave, abhängig von Projektkonfiguration
+### Export and import
+- JSON and CSV copy and download
+- Decimal places control for export, default 2
+- Export mode selection
+  - absolute, points in the current world coordinate system
+  - centered, polygon center at 0,0
+  - 0 centered, first point at 0,0
+- Only one points list per shape in exports, based on mode and decimals
+- Optional project JSON import and autosave, depending on project configuration
 
-## Projektstruktur
+## Project structure
 
-Kein Single File Monolith. Sauber getrennte Bereiche für UI, Rendering, Input, State, Geometrie, Snapping und IO.
+Not a single file monolith. Clean separation across UI, rendering, input, state, geometry, snapping, and IO.
 
-Empfohlene Gliederung
+Suggested layout
 - index.html
 - styles
 - src
@@ -79,59 +79,56 @@ Empfohlene Gliederung
   - io
   - ui
 
-## Setup
+## Running locally
 
-Kein Build Tool nötig. Es reicht ein lokaler Static Server, weil Browser bei file Scheme teils zickt, vor allem Clipboard.
+No build tool required. Use a local static server because some browsers restrict clipboard behavior on the file scheme.
 
-Python Beispiel
+Python example
 ```bash
 python3 -m http.server 8000
 ```
 
-Dann im Browser öffnen
+Open in the browser
 - http://localhost:8000
 
-## Bedienung
+## Controls
 
-### Maus
-- Linksklick auf leere Fläche setzt Punkt
-- Drag auf Punkt verschiebt Punkt
-- Shift plus Klick erweitert Selection
-- Shift plus Drag Box Select
-- Alt hält Snapping aus
-- Space plus Drag pannt den View
-- Mausrad zoomt um den Mauszeiger
+### Mouse
+- Left click on empty space adds a point
+- Drag a point to move it
+- Shift plus click extends the selection
+- Shift plus drag creates a box selection
+- Alt temporarily disables snapping
+- Space plus drag pans the view
+- Mouse wheel zooms around the cursor
 
-### Tastatur
-- Delete oder Backspace löscht selektierte Punkte
+### Keyboard
+- Delete or Backspace deletes selected points
 - Ctrl Z undo
 - Ctrl Y redo
-- Ctrl A selektiert alle Punkte im aktiven Shape
-- Ctrl Shift A selektiert alle Punkte in allen sichtbaren unlocked Shapes
-- Tab wechselt Shape, Shift Tab rückwärts
+- Ctrl A selects all points in the active shape
+- Ctrl Shift A selects all points in all visible unlocked shapes
+- Tab switches shape, Shift Tab goes backwards
 
-## Export Formate
+## Export formats
 
 ### JSON
-- coord enthält originPxX originPxY pixelsPerUnit yMode
-- export enthält mode und decimals
-- shapes enthält id name closed points
+- coord includes originPxX, originPxY, pixelsPerUnit, yMode
+- export includes mode and decimals
+- shapes includes id, name, closed, points
 
 ### CSV
-- Standard aktives Shape
-- Zeilenformat x,y
+- Default is the active shape
+- Row format is x,y
 
-## Entwicklung
+## Development rules
 
-Regel für Änderungen
-- Keine Regressionen, bestehende Interaktionen dürfen nicht verschwinden
-- Neue Features additiv integrieren
-- Transform Logik bleibt sauber getrennt zwischen View und Coord
-- Snapping Entscheidungen immer in Screen Pixeln für konsistentes Gefühl bei Zoom
+- No regressions, existing interactions must not disappear
+- Add features without changing existing workflows
+- Keep view transforms separate from coordinate transforms
+- Make snap decisions in screen pixels for consistent feel across zoom levels
 
-## Lizenz
-
-Dieses Projekt ist unter der MIT License veröffentlicht. Du darfst es kostenlos für alles nutzen, kopieren, verändern, veröffentlichen, vertreiben und auch kommerziell verwenden, solange der Copyright Hinweis und die Lizenz im Code bzw. in abgeleiteten Werken erhalten bleiben.
+## License
 
 MIT License
 
