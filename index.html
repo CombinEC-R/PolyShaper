@@ -149,8 +149,10 @@
     <div class="app-container">
         <div class="canvas-wrapper">
             <canvas id="canvas" tabindex="0" style="outline: none;"></canvas>
+            <canvas id="minimap" style="position: absolute; bottom: 30px; right: 10px; width: 150px; height: 150px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.5); pointer-events: none; display: none;"></canvas>
             <div class="status-bar">
                 <span id="mouse-coords">Px: [-, -] | World: [-, -]</span>
+                <span id="selection-status">Sel: 0 | Shape: -</span>
                 <span id="y-mode-status">Y-Mode: Math</span>
                 <span id="zoom-status">Zoom: 100%</span>
             </div>
@@ -171,6 +173,13 @@
                     <button id="zoom-out-btn" style="flex-grow: 0; padding: 0.25rem 0.75rem;">-</button>
                     <input type="range" id="zoom-slider" min="0.1" max="20" step="0.1" value="1" style="flex-grow: 1;">
                     <button id="zoom-in-btn" style="flex-grow: 0; padding: 0.25rem 0.75rem;">+</button>
+                </div>
+                <div style="display: flex; gap: 0.25rem; font-size: 0.8rem;">
+                    <button id="zoom-25-btn" style="flex: 1; padding: 2px;">25%</button>
+                    <button id="zoom-50-btn" style="flex: 1; padding: 2px;">50%</button>
+                    <button id="zoom-100-btn" style="flex: 1; padding: 2px;">100%</button>
+                    <button id="zoom-200-btn" style="flex: 1; padding: 2px;">200%</button>
+                    <button id="zoom-400-btn" style="flex: 1; padding: 2px;">400%</button>
                 </div>
             </div>
             <div class="control-group" style="flex-direction: row; gap: 0.5rem;">
@@ -195,6 +204,7 @@
                 <label>Origin Y (px): <input type="number" id="origin-y-input"></label>
                 <button id="set-origin-btn">Set Origin by Click</button>
                 <button id="reset-origin-btn">Reset Origin to 0</button>
+                <button id="center-view-origin-btn">Center View on Origin</button>
             </div>
             <div class="control-group">
                 <label>Pixels per Unit: <input type="number" id="scale-input" value="1"></label>
@@ -209,13 +219,28 @@
 
             <h3>Shapes/Layers</h3>
             <div class="control-group">
+                <input type="text" id="shape-search-input" placeholder="Search shapes..." style="width: 100%; padding: 4px; margin-bottom: 4px; background: var(--bg-tertiary); color: white; border: 1px solid var(--border-color); border-radius: 3px;">
                 <div style="display: flex; gap: 0.25rem;">
                     <button id="add-shape-btn" style="flex-grow: 1;" title="New Shape">New</button>
                     <button id="duplicate-shape-btn" style="flex-grow: 1;" title="Duplicate Shape">Dup</button>
                     <button id="delete-shape-btn" style="flex-grow: 1;" title="Delete Shape">Del</button>
                     <button id="clear-points-btn" style="flex-grow: 1;" title="Clear Points">Clr</button>
                 </div>
-                <div id="shapes-list" style="max-height: 200px; overflow-y: auto; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary);"></div>
+                <div id="shapes-list" style="max-height: 250px; overflow-y: auto; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary);"></div>
+            </div>
+
+            <!-- Context Menu -->
+            <div id="shape-context-menu" style="display: none; position: fixed; background: var(--bg-secondary); border: 1px solid var(--border-color); box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 1000; border-radius: 4px; min-width: 150px;">
+                <div class="ctx-item" data-action="rename" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Rename</div>
+                <div class="ctx-item" data-action="duplicate" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Duplicate</div>
+                <div class="ctx-item" data-action="clear-points" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Clear Points</div>
+                <div class="ctx-item" data-action="reverse-order" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Reverse Point Order</div>
+                <div class="ctx-item" data-action="move-up" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Move Up</div>
+                <div class="ctx-item" data-action="move-down" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Move Down</div>
+                <div class="ctx-item" data-action="export-shape-json" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Export JSON</div>
+                <div class="ctx-item" data-action="export-shape-csv" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Export CSV</div>
+                <div class="ctx-item" data-action="export-shape-svg" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-color);">Export SVG</div>
+                <div class="ctx-item" data-action="delete" style="padding: 8px 12px; cursor: pointer; color: #ff6b6b;">Delete Shape</div>
             </div>
 
             <h3>Active Shape</h3>
@@ -229,6 +254,7 @@
             <h3>Global Settings</h3>
             <div class="control-group">
                 <label><input type="checkbox" id="show-labels-checkbox"> Show Point Labels</label>
+                <label><input type="checkbox" id="show-minimap-checkbox"> Show Minimap</label>
             </div>
 
             <h3>Snapping</h3>
@@ -243,6 +269,67 @@
                 <label>Snap Out (px): <input type="number" id="snap-out-input" value="16" min="1" max="50"></label>
             </div>
 
+            <h3>Transform Selection</h3>
+            <div class="control-group" id="transform-panel" style="display: none;">
+                <div style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.85rem; font-weight: bold;">Pivot:</label>
+                    <div class="radio-group" style="font-size: 0.8rem;">
+                        <input type="radio" id="pivot-centroid" name="transform-pivot" value="centroid" checked>
+                        <label for="pivot-centroid">Centroid</label>
+                        <input type="radio" id="pivot-origin" name="transform-pivot" value="origin">
+                        <label for="pivot-origin">World Origin</label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.85rem;">Scale: <span id="transform-scale-val">1.00</span></label>
+                    <div style="display: flex; gap: 4px;">
+                        <input type="range" id="transform-scale-slider" min="0.1" max="3.0" step="0.05" value="1.0" style="flex-grow: 1;">
+                        <button id="transform-scale-reset" title="Reset Scale" style="padding: 0 6px;">↺</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 0.5rem;">
+                    <label style="font-size: 0.85rem;">Rotate: <span id="transform-rotate-val">0°</span></label>
+                    <div style="display: flex; gap: 4px;">
+                        <input type="range" id="transform-rotate-slider" min="-180" max="180" step="1" value="0" style="flex-grow: 1;">
+                        <button id="transform-rotate-reset" title="Reset Rotation" style="padding: 0 6px;">↺</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <button id="btn-mirror-x" style="flex: 1; font-size: 0.8rem;">Mirror X (World)</button>
+                    <button id="btn-mirror-y" style="flex: 1; font-size: 0.8rem;">Mirror Y (World)</button>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btn-transform-apply" style="flex: 1; background-color: var(--accent-color); color: white;">Apply</button>
+                    <button id="btn-transform-cancel" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+
+            <h3>Selected Point</h3>
+            <div class="control-group" id="point-editor" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div>
+                        <label style="font-size: 0.8rem;">Pixel X</label>
+                        <input type="number" id="point-px-x" step="1" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem;">Pixel Y</label>
+                        <input type="number" id="point-px-y" step="1" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem;">World X</label>
+                        <input type="number" id="point-world-x" step="0.001" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem;">World Y</label>
+                        <input type="number" id="point-world-y" step="0.001" style="width: 100%;">
+                    </div>
+                </div>
+            </div>
+
             <h3>Points</h3>
             <div style="max-height: 200px; overflow-y: auto;">
                 <table class="point-table">
@@ -251,8 +338,38 @@
                 </table>
             </div>
 
-            <h3>Export</h3>
+            <h3>Measurements & Stats</h3>
             <div class="control-group">
+                <label>Mode:</label>
+                <div class="radio-group">
+                    <input type="radio" id="measure-none" name="measure-mode" value="none" checked><label for="measure-none">None</label>
+                    <input type="radio" id="measure-dist" name="measure-mode" value="distance"><label for="measure-dist">Distance</label>
+                    <input type="radio" id="measure-angle" name="measure-mode" value="angle"><label for="measure-angle">Angle</label>
+                </div>
+                <button id="clear-measurements-btn">Clear Measurements</button>
+            </div>
+            <div class="control-group" id="polygon-stats" style="font-size: 0.85rem; background: var(--bg-primary); padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border-color);">
+                <div style="margin-bottom: 4px;"><strong>Active Shape Stats:</strong></div>
+                <div>Perimeter: <span id="stat-perimeter">-</span></div>
+                <div>Area: <span id="stat-area">-</span></div>
+            </div>
+
+            <h3>Snapshots</h3>
+            <div class="control-group">
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="snapshot-name-input" placeholder="Snapshot Name" style="flex-grow: 1; padding: 4px; background: var(--bg-tertiary); color: white; border: 1px solid var(--border-color); border-radius: 3px;">
+                    <button id="save-snapshot-btn" title="Save Snapshot">Save</button>
+                </div>
+                <div id="snapshots-list" style="max-height: 150px; overflow-y: auto; margin-top: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background-color: var(--bg-primary);"></div>
+            </div>
+
+            <h3>Import / Export</h3>
+            <div class="control-group">
+                <label class="file-upload-btn" style="width: 100%; text-align: center; margin-bottom: 0.5rem; background: var(--accent-color); color: white; padding: 6px; border-radius: 4px; cursor: pointer;">
+                    Import Project JSON
+                    <input type="file" id="import-json-input" accept=".json" style="display: none;">
+                </label>
+                <label><input type="checkbox" id="export-view-state-checkbox"> Include View State</label>
                 <label>Mode:</label>
                 <select id="export-mode-select" style="width: 100%; margin-bottom: 0.5rem; background-color: var(--bg-tertiary); color: var(--text-primary); border: none; padding: 4px; border-radius: 4px;">
                     <option value="absolute">Absolute (World)</option>
@@ -261,9 +378,14 @@
                 </select>
                 <label>Decimals: <input type="number" id="export-decimals-input" min="0" max="6" value="2"></label>
             </div>
-            <div class="control-group" style="flex-direction: row; gap: 0.5rem;">
-                <button id="copy-json-btn" style="flex-grow: 1;">Copy JSON</button>
-                <button id="copy-csv-btn" style="flex-grow: 1;">Copy CSV</button>
+            <div class="control-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <button id="copy-json-btn">Copy JSON</button>
+                <button id="download-json-btn">DL JSON</button>
+                <button id="copy-csv-btn">Copy CSV</button>
+                <button id="download-csv-btn">DL CSV</button>
+                <button id="download-coco-btn">DL COCO</button>
+                <button id="download-svg-btn">DL SVG</button>
+                <button id="download-png-btn" style="grid-column: span 2;">Download PNG</button>
             </div>
             <button id="help-btn" style="margin-top: auto;">Help (?)</button>
         </aside>

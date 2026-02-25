@@ -123,14 +123,19 @@ export function calculateGridInterval() {
 export function findPointAt(imgX, imgY) {
     const state = getState();
     const tolerance = 10 / state.viewTransform.scale;
+    let nearest = null;
+    let minD = Infinity;
     for (const shape of [...state.shapes].reverse()) { 
         if (!shape.visible || shape.locked) continue;
-        const pointIndex = shape.points.findIndex(p => Math.hypot(p.x - imgX, p.y - imgY) < tolerance);
-        if (pointIndex > -1) {
-            return { shapeId: shape.id, pointIndex };
-        }
+        shape.points.forEach((p, i) => {
+            const d = Math.hypot(p.x - imgX, p.y - imgY);
+            if (d < tolerance && d < minD) {
+                minD = d;
+                nearest = { shapeId: shape.id, pointIndex: i };
+            }
+        });
     }
-    return null;
+    return nearest;
 }
 
 
@@ -323,4 +328,62 @@ export function computeAdvancedSnap(rawImagePos, excludeShapeId, excludePointInd
     }
 
     return { active: false, snappedPx: rawImagePos, type: null, targetRef: null, rawPx: rawImagePos };
+}
+
+export function sqr(x) { return x * x }
+export function dist2(v, w) { return sqr(v.x - w.x) + sqr(v.y - w.y) }
+export function distToSegmentSquared(p, v, w) {
+    let l2 = dist2(v, w);
+    if (l2 === 0) return dist2(p, v);
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return dist2(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+}
+export function distToSegment(p, v, w) { return Math.sqrt(distToSegmentSquared(p, v, w)); }
+
+export function downloadFile(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 0);
+}
+
+export function calculatePolygonArea(points) {
+    if (points.length < 3) return 0;
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+        let j = (i + 1) % points.length;
+        area += points[i].x * points[j].y;
+        area -= points[j].x * points[i].y;
+    }
+    return Math.abs(area / 2);
+}
+
+export function calculatePolygonPerimeter(points, closed) {
+    if (points.length < 2) return 0;
+    let perimeter = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+        perimeter += Math.hypot(points[i+1].x - points[i].x, points[i+1].y - points[i].y);
+    }
+    if (closed && points.length > 2) {
+        perimeter += Math.hypot(points[0].x - points[points.length-1].x, points[0].y - points[points.length-1].y);
+    }
+    return perimeter;
+}
+
+export function calculateAngle(p1, p2, p3) {
+    const a = Math.hypot(p3.x - p2.x, p3.y - p2.y);
+    const b = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    const c = Math.hypot(p3.x - p1.x, p3.y - p1.y);
+    if (a === 0 || b === 0) return 0;
+    let cosVal = (a*a + b*b - c*c) / (2 * a * b);
+    cosVal = Math.max(-1, Math.min(1, cosVal));
+    return Math.acos(cosVal) * (180 / Math.PI);
 }

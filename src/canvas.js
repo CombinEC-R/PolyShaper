@@ -1,6 +1,6 @@
 import { getState } from './state.js';
 import { dom } from './dom.js';
-import { calculateGridInterval, imageToWorld, worldToImage, getImageCorners } from './utils.js';
+import { calculateGridInterval, imageToWorld, worldToImage, getImageCorners, calculateAngle, screenToImagePx } from './utils.js';
 
 let isDirty = true;
 let renderRequested = false;
@@ -79,6 +79,40 @@ function render() {
         }
     }
 
+    // --- Draw Compare Snapshot (Ghost) ---
+    if (state.compareMode && state.compareSnapshot && state.compareSnapshot.data) {
+        let snapshotData = null;
+        try {
+            snapshotData = typeof state.compareSnapshot.data === 'string' ? JSON.parse(state.compareSnapshot.data) : state.compareSnapshot.data;
+        } catch (e) {
+            console.error("Failed to parse snapshot data", e);
+        }
+
+        if (snapshotData && snapshotData.shapes) {
+            ctx.save();
+            ctx.globalAlpha = 0.3; // Ghost opacity
+            snapshotData.shapes.forEach(shape => {
+                if (!shape.visible || shape.points.length < 1) return;
+                
+                // Draw ghost lines
+                if (shape.points.length > 1) {
+                    ctx.strokeStyle = '#ffffff'; // Ghost color (white or maybe grey)
+                    ctx.lineWidth = 1 / state.viewTransform.scale;
+                    ctx.setLineDash([5 / state.viewTransform.scale, 5 / state.viewTransform.scale]);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(shape.points[0].x, shape.points[0].y);
+                    for (let i = 1; i < shape.points.length; i++) {
+                        ctx.lineTo(shape.points[i].x, shape.points[i].y);
+                    }
+                    if (shape.closed) ctx.closePath();
+                    ctx.stroke();
+                }
+            });
+            ctx.restore();
+        }
+    }
+
     // --- Draw Shapes (Polygons) BEFORE Grid ---
     state.shapes.forEach(shape => {
         if (!shape.visible || shape.points.length < 1) return;
@@ -106,7 +140,7 @@ function render() {
         shape.points.forEach((p, i) => {
             ctx.beginPath();
             const isHovered = state.hoveredPoint && state.hoveredPoint.shapeId === shape.id && state.hoveredPoint.pointIndex === i;
-            const isSelected = state.selectedPoint && state.selectedPoint.shapeId === shape.id && state.selectedPoint.pointIndex === i;
+            const isSelected = state.selectedPoints && state.selectedPoints.some(sp => sp.shapeId === shape.id && sp.pointIndex === i);
             const radius = (isHovered && !isSelected) ? 7 / state.viewTransform.scale : 5 / state.viewTransform.scale;
             
             ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
@@ -115,6 +149,18 @@ function render() {
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 1 / state.viewTransform.scale;
             ctx.stroke();
+
+            if (isHovered) {
+                const w = imageToWorld(p.x, p.y);
+                labelsToDraw.push({
+                    text: `[${i}] Px: ${p.x.toFixed(0)}, ${p.y.toFixed(0)} | W: ${w.x.toFixed(state.export.decimals)}, ${w.y.toFixed(state.export.decimals)}`,
+                    x: p.x,
+                    y: p.y - (15 / state.viewTransform.scale),
+                    align: 'center',
+                    baseline: 'bottom',
+                    color: '#000000'
+                });
+            }
         });
     });
 
@@ -223,6 +269,85 @@ function render() {
         });
     }
 
+    // Draw Measurements
+    const drawMeasurement = (m, isPreview = false) => {
+        ctx.save();
+        ctx.strokeStyle = isPreview ? 'rgba(255, 165, 0, 0.8)' : 'rgba(255, 165, 0, 1)';
+        ctx.fillStyle = isPreview ? 'rgba(255, 165, 0, 0.8)' : 'rgba(255, 165, 0, 1)';
+        ctx.lineWidth = 2 / state.viewTransform.scale;
+        
+        if (m.type === 'distance' && m.points.length === 2) {
+            ctx.beginPath();
+            ctx.moveTo(m.points[0].x, m.points[0].y);
+            ctx.lineTo(m.points[1].x, m.points[1].y);
+            ctx.stroke();
+            
+            const distPx = Math.hypot(m.points[1].x - m.points[0].x, m.points[1].y - m.points[0].y);
+            const distWorld = distPx / state.worldTransform.pixelsPerUnit;
+            
+            const midX = (m.points[0].x + m.points[1].x) / 2;
+            const midY = (m.points[0].y + m.points[1].y) / 2;
+            
+            labelsToDraw.push({
+                text: `${distWorld.toFixed(2)} u`,
+                x: midX,
+                y: midY,
+                align: 'center',
+                baseline: 'middle',
+                color: 'rgba(255, 165, 0, 1)'
+            });
+        } else if (m.type === 'angle' && m.points.length >= 2) {
+            ctx.beginPath();
+            ctx.moveTo(m.points[0].x, m.points[0].y);
+            ctx.lineTo(m.points[1].x, m.points[1].y);
+            if (m.points.length === 3) {
+                ctx.lineTo(m.points[2].x, m.points[2].y);
+            }
+            ctx.stroke();
+            
+            if (m.points.length === 3) {
+                const angle = calculateAngle(m.points[0], m.points[1], m.points[2]);
+                labelsToDraw.push({
+                    text: `${angle.toFixed(1)}°`,
+                    x: m.points[1].x,
+                    y: m.points[1].y - 15 / state.viewTransform.scale,
+                    align: 'center',
+                    baseline: 'bottom',
+                    color: 'rgba(255, 165, 0, 1)'
+                });
+            }
+        }
+        
+        // Draw points
+        m.points.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4 / state.viewTransform.scale, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        ctx.restore();
+    };
+
+    if (state.measurements) {
+        state.measurements.forEach(m => drawMeasurement(m));
+    }
+    
+    if (state.measureMode !== 'none' && state.measurePoints.length > 0) {
+        let currentPos = state.currentMousePos || { x: 0, y: 0 };
+        const imagePos = screenToImagePx(currentPos.x, currentPos.y);
+        let previewPos = imagePos;
+        
+        if (state.snapPreview && state.snapPreview.active) {
+            previewPos = state.snapPreview.snappedPx;
+        } else if (state.hoveredPoint) {
+            const shape = state.shapes.find(s => s.id === state.hoveredPoint.shapeId);
+            if (shape) previewPos = shape.points[state.hoveredPoint.pointIndex];
+        }
+        
+        const previewM = { type: state.measureMode, points: [...state.measurePoints, previewPos] };
+        drawMeasurement(previewM, true);
+    }
+
     // --- Draw Labels Last (Adaptive) ---
     // We need to restore context to draw labels in screen space properly (handled inside helper)
     // But helper expects to be called while context is in world space? 
@@ -231,8 +356,28 @@ function render() {
     // Helper restores ctx.
     
     labelsToDraw.forEach(l => {
-        drawAdaptiveLabel(ctx, String(l.text), l.x, l.y, l.align, l.baseline, state);
+        drawAdaptiveLabel(ctx, String(l.text), l.x, l.y, l.align, l.baseline, state, l.color);
     });
+
+    // Draw Box Selection
+    if (state.boxSelect && state.boxSelect.active && state.boxSelect.startPx && state.boxSelect.endPx) {
+        const s1 = {
+            x: (state.boxSelect.startPx.x * state.viewTransform.scale) + state.viewTransform.panX,
+            y: (state.boxSelect.startPx.y * state.viewTransform.scale) + state.viewTransform.panY
+        };
+        const s2 = {
+            x: (state.boxSelect.endPx.x * state.viewTransform.scale) + state.viewTransform.panX,
+            y: (state.boxSelect.endPx.y * state.viewTransform.scale) + state.viewTransform.panY
+        };
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.fillStyle = 'rgba(0, 120, 255, 0.2)';
+        ctx.strokeStyle = 'rgba(0, 120, 255, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.fillRect(s1.x, s1.y, s2.x - s1.x, s2.y - s1.y);
+        ctx.strokeRect(s1.x, s1.y, s2.x - s1.x, s2.y - s1.y);
+        ctx.restore();
+    }
 
     // Draw Snap Indicators (New)
     const snap = state.snapState.active ? state.snapState : (state.snapPreview && state.snapPreview.active ? state.snapPreview : null);
@@ -320,6 +465,81 @@ function render() {
         // Request next frame for pulse
         requestAnimationFrame(draw);
     }
+
+    if (state.showMinimap && dom.minimapCanvas) {
+        drawMinimap(state, dom.minimapCanvas);
+    }
+}
+
+function drawMinimap(state, minimapCanvas) {
+    if (!state.image) return;
+    const ctx = minimapCanvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = minimapCanvas.getBoundingClientRect();
+    
+    if (minimapCanvas.width !== rect.width * dpr || minimapCanvas.height !== rect.height * dpr) {
+        minimapCanvas.width = rect.width * dpr;
+        minimapCanvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+    }
+
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    // Calculate scale to fit image in minimap
+    const imgW = state.image.width * state.imageTransform.scale;
+    const imgH = state.image.height * state.imageTransform.scale;
+    const scaleX = rect.width / imgW;
+    const scaleY = rect.height / imgH;
+    const scale = Math.min(scaleX, scaleY) * 0.9; // 10% padding
+    
+    const cx = state.imageTransform.offsetX + imgW / 2;
+    const cy = state.imageTransform.offsetY + imgH / 2;
+
+    ctx.save();
+    // Center the image in the minimap
+    ctx.translate(rect.width / 2, rect.height / 2);
+    ctx.scale(scale, scale);
+    ctx.translate(-cx, -cy);
+
+    // Draw image
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(state.imageTransform.rotation * Math.PI / 180);
+    ctx.scale(
+        (state.imageTransform.flipX ? -1 : 1) * state.imageTransform.scale, 
+        (state.imageTransform.flipY ? -1 : 1) * state.imageTransform.scale
+    );
+    ctx.drawImage(state.image, -state.image.width / 2, -state.image.height / 2);
+    ctx.restore();
+
+    // Draw shapes
+    state.shapes.forEach(shape => {
+        if (!shape.visible || shape.points.length < 2) return;
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = 1 / scale;
+        ctx.beginPath();
+        ctx.moveTo(shape.points[0].x, shape.points[0].y);
+        for (let i = 1; i < shape.points.length; i++) {
+            ctx.lineTo(shape.points[i].x, shape.points[i].y);
+        }
+        if (shape.closed) ctx.closePath();
+        ctx.stroke();
+    });
+
+    // Draw Viewport
+    const mainCanvasRect = dom.canvas.getBoundingClientRect();
+    const viewLeft = -state.viewTransform.panX / state.viewTransform.scale;
+    const viewTop = -state.viewTransform.panY / state.viewTransform.scale;
+    const viewWidth = mainCanvasRect.width / state.viewTransform.scale;
+    const viewHeight = mainCanvasRect.height / state.viewTransform.scale;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 1.5 / scale;
+    ctx.strokeRect(viewLeft, viewTop, viewWidth, viewHeight);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(viewLeft, viewTop, viewWidth, viewHeight);
+
+    ctx.restore();
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -334,7 +554,7 @@ function roundRect(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 
-function drawAdaptiveLabel(ctx, text, imageX, imageY, align, baseline, state) {
+function drawAdaptiveLabel(ctx, text, imageX, imageY, align, baseline, state, customColor) {
     const dpr = window.devicePixelRatio || 1;
     
     // Convert image coordinates to screen coordinates
@@ -372,11 +592,11 @@ function drawAdaptiveLabel(ctx, text, imageX, imageY, align, baseline, state) {
         }
     } catch (e) {
         console.error("getImageData failed, using fallback.", {e, text, screenX, screenY});
-        drawTaintedFallback(ctx, text, screenX, screenY, align, baseline, dpr);
+        drawTaintedFallback(ctx, text, screenX, screenY, align, baseline, dpr, customColor);
         return;
     }
 
-    const fillColor = isDark ? '#ffffff' : '#000000';
+    const fillColor = customColor || (isDark ? '#ffffff' : '#000000');
     const strokeColor = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.9)';
     const backplateColor = isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.45)';
 
@@ -420,7 +640,7 @@ function drawAdaptiveLabel(ctx, text, imageX, imageY, align, baseline, state) {
     ctx.restore();
 }
 
-function drawTaintedFallback(ctx, text, screenX, screenY, align, baseline, dpr) {
+function drawTaintedFallback(ctx, text, screenX, screenY, align, baseline, dpr, customColor) {
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     
@@ -437,7 +657,7 @@ function drawTaintedFallback(ctx, text, screenX, screenY, align, baseline, dpr) 
     ctx.lineWidth = 3;
     ctx.strokeText(text, screenX, screenY);
     
-    ctx.fillStyle = 'black';
+    ctx.fillStyle = customColor || 'black';
     ctx.fillText(text, screenX, screenY);
     
     ctx.restore();
